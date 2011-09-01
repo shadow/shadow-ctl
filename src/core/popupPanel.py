@@ -44,7 +44,7 @@ class PopupPanel(panel.Panel):
         yoffset = 2
         
         if self.queryText is not None:
-            m = tools.splitStr(self.queryText, width-2)
+            m = tools.splitStr(self.queryText, width-4)
             for line in m:
                 self.addstr(yoffset, 2, line, self.queryAttr)
                 yoffset += 1

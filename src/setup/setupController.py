@@ -1,8 +1,26 @@
-import os, time, curses
+import os, time, curses, ConfigParser
 
 from core import panel, labelPanel, control, controlPanel, scrollPanel, popupPanel, textInput, tools
 
 REDRAW_RATE = 5
+HOME=os.getenv("HOME")
+DEFAULT_CONFIG_PATH=os.path.abspath(HOME+"/.shadow/shadow-cli.conf")
+DEFAULT_CONFIGS = {"setup" : {"install-root" : HOME+"/.local"}}
+
+def setDefaultConfig():
+    d = os.path.dirname(DEFAULT_CONFIG_PATH)
+    if not os.path.exists(d): os.makedirs(d)
+    
+    conf = ConfigParser.ConfigParser()
+    conf.read(DEFAULT_CONFIG_PATH)
+    
+    for section in DEFAULT_CONFIGS:
+        if not conf.has_section(section): conf.add_section(section)
+        for option in DEFAULT_CONFIGS[section]:
+            value = DEFAULT_CONFIGS[section][option]
+            if not conf.has_option(section, option): conf.set(section, option, value)
+            
+    return conf
 
 class SetupController:
     def __init__(self, stdscr):
@@ -16,6 +34,8 @@ class SetupController:
         self.controls = None
         self.isDone = False
         self.lastDrawn = 0
+        
+        self.config = setDefaultConfig()
     
     def getScreen(self):
         return self.screen
@@ -83,12 +103,12 @@ class SetupController:
             elif key == ord('h') or key == ord('H'):
                 pass
             elif key == ord('s') or key == ord('S'):
-                if self.scrollp.isVisible(): self.saveLog()
+                if self.scrollp.isVisible(): self.scrollp.saveLog()
             elif key == ord('l') - 96:
                 # force redraw when ctrl+l is pressed
                 self.redraw(True)
-            elif key == 27 and self.popupp.isVisible():
-                self.popupp.setVisible(False)
+            #elif key == 27 and self.popupp.isVisible():
+            #    self.popupp.setVisible(False)
             else:
                 if self.controlp.isVisible():
                     isKeyConsumed = self.controlp.handleKey(key)
@@ -97,21 +117,16 @@ class SetupController:
                 elif self.scrollp.isVisible():
                     self.scrollp.handleKey(key)
     
-    def saveLog(self):
-        self.popupp.setQuery("Please enter the path to save the log file:")
-        self.popupp.setDefaultResponse(os.path.abspath(os.getenv("HOME") + "/.shadow/cli-" + str(int(time.time())) + ".log"))
+    def popup(self, query, default):
+        self.popupp.setQuery(query)
+        self.popupp.setDefaultResponse(default)
         self.popupp.setVisible(True)
-        self.popupp.redraw(True)
-        path = self.popupp.getUserResponse()
+        self.redraw(True)
+        response = self.popupp.getUserResponse()
         self.popupp.setVisible(False)
+        self.redraw(True)
+        return response
         
-        if path is not None:
-            path = os.path.abspath(path)
-            d = os.path.dirname(path)
-            if not os.path.exists(d): os.makedirs(d)
-            with open(path, 'a') as f:
-                for line in self.scrollp.get(): f.write(line)
-
     def needsTransition(self):
         for c in self.controls:
             if c.isExecuted(): return True
@@ -120,13 +135,12 @@ class SetupController:
     def doTransition(self):
         self.controlp.setVisible(False)
         self.scrollp.setVisible(True)
-        self.labelp.setMessage("Shadow Setup Wizard -- s: save log, q: quit")
         
         for c in self.controls:
             if c.isExecuted():
                 n = c.getName()
                 if n == "Auto Setup": self.doAutoSetup()
-                elif n == "Interactive Setup": pass
+                elif n == "Interactive Setup": self.doInteractiveSetup()
                 elif n == "Uninstall": self.doUninstall()
                 elif n == "Quit": self.stop()
                 
@@ -135,10 +149,50 @@ class SetupController:
         pass
     
     def doInteractiveSetup(self):
-        pass
+        query = "Please enter the root install path for Shadow and its plug-ins and dependencies. The default is recommended. (**Required**)"
+        default = os.path.abspath(HOME+"/.local/")
+        installPathRoot = self.popup(query, default)
+        # install path is required, return
+        # TODO should log this
+        if installPathRoot is None: return
+        
+        query = "We need to download and build a custom version of OpenSSL for Shadow applications that use it. If your system version of OpenSSL was configured with \'-fPIC shared\', you may be able to ignore this by pressing ESC. In that case you will need to provide the path to your OpenSSL install. (Note - if a local copy is cached, no download will be performed.)"
+        default = "http://www.openssl.org/source/openssl-1.0.0d.tar.gz"
+        opensslUrl = self.popup(query, default)
+        opensslInstallPath = installPathRoot
+        
+        if opensslUrl is None:
+            query = "You chose not to do a custom build of OpenSSL. Please provide the OpenSSL root install path. (**Required**)"
+            default = installPathRoot
+            opensslInstallPath = self.popup(query, default)
+            # install path is required, return
+            # TODO should log this
+            if opensslInstallPath is None: return
+        else:
+            # do the download and install
+            pass
+        
+        query = "We need to download and build a custom version of libevent-2.0 for Shadow applications that use it. If your system version of libevent-2.0 was configured with \'CFLAGS=\"-fPIC -I"+opensslInstallPath+"\" LDFLAGS=\"-L"+opensslInstallPath+"\"\', you may be able to ignore this by pressing ESC. (Note - if a local copy is cached, no download will be performed.)"
+        default = "http://monkey.org/~provos/libevent-2.0.11-stable.tar.gz"
+        libeventUrl = self.popup(query, default)
+        libeventInstallPath = installPathRoot
+        
+        if libeventUrl is None:
+            query = "You chose not to do a custom build of libevent-2.0. Please provide the libevent-2.0 root install path. (**Required**)"
+            default = installPathRoot
+            libeventInstallPath = self.popup(query, default)
+            # install path is required, return
+            # TODO should log this
+            if libeventInstallPath is None: return
+        else:
+            # do the download and install
+            pass
     
     def doUninstall(self):
         # spawn a thread to execute the uninstall commands and fill the log
+        # remove ~/.local/bin/shadow*
+        #        ~/.local/lib/libshadow*
+        #      -rf  ~/.local/share/shadow
         pass
                         
     def stop(self):
@@ -146,3 +200,4 @@ class SetupController:
         Terminates after the input is processed.
         """
         self.isDone = True
+        self.scrollp.join()
