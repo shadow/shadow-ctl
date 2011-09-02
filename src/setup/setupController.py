@@ -1,11 +1,18 @@
-import os, time, curses, ConfigParser
+import os, time, shutil, curses, ConfigParser, subprocess
 
-from core import panel, labelPanel, control, controlPanel, scrollPanel, popupPanel, textInput, tools
+from core import labelPanel, control, controlPanel, scrollPanel, popupPanel
+from setup import setupUtil
 
 REDRAW_RATE = 5
 HOME=os.getenv("HOME")
 DEFAULT_CONFIG_PATH=os.path.abspath(HOME+"/.shadow/shadow-cli.conf")
-DEFAULT_CONFIGS = {"setup" : {"install-root" : HOME+"/.local"}}
+DEFAULT_CONFIGS = {"setup" : {
+                              "install-root" : HOME+"/.local", 
+                              "download" : HOME+"/.shadow/download-cache/",
+                              "build" : HOME+"/.shadow/build-cache/",
+                              "openssl" : "http://www.openssl.org/source/openssl-1.0.0d.tar.gz",
+                              "libevent" : "http://monkey.org/~provos/libevent-2.0.11-stable.tar.gz",
+                              }}
 
 def setDefaultConfig():
     d = os.path.dirname(DEFAULT_CONFIG_PATH)
@@ -53,7 +60,7 @@ class SetupController:
         self.screen.refresh()
         
     def start(self):
-         # allows for background transparency
+        # allows for background transparency
         try: curses.use_default_colors()
         except curses.error: pass
         
@@ -72,8 +79,8 @@ class SetupController:
         self.controlp.setVisible(True)
         
         self.controls = []
-        self.controls.append(control.Control("Auto Setup", "Performs an automatic configuration of a Shadow installation by downloading, building, and installing Shadow and any missing dependencies to the user's home directory using default options."))
-        self.controls.append(control.Control("Interactive Setup", "Interactively configure Shadow as above."))
+        self.controls.append(control.Control("Auto Setup", "Performs an automatic configuration of a Shadow installation by downloading, building, and installing Shadow and any missing dependencies to the user's home directory using default options. A build-cache is created in "+self.config.get("setup", "build")+" and not cleared. Future Auto Setups will re-use this cache."))
+        self.controls.append(control.Control("Interactive Setup", "Interactively configure Shadow as above. This option first clears the build-cache that may have been previously created in "+self.config.get("setup", "build")+"."))
         self.controls.append(control.Control("Uninstall Shadow", "Uninstall Shadow using cached installation options."))
         self.controls.append(control.Control("Quit", "Exit the Shadow Setup Wizard."))
         
@@ -146,18 +153,45 @@ class SetupController:
                 
     def doAutoSetup(self):
         # spawn a thread to execute all the setup commands and fill the log
+        installPathRoot = self.config.get("setup", "install-root")
+        
+        opensslUrl = self.config.get("setup", "openssl")
+        opensslResourcePath = setupUtil.getTGZResource(opensslUrl, self.config.get("setup", "download"), self.config.get("setup", "build"))
+        
+        cwd = os.getcwd()
+        os.chdir(opensslResourcePath)
+        subprocess.call(("./config --prefix="+installPathRoot+" -fPIC shared").split())
+        subprocess.call("make".split())
+        subprocess.call("make install".split())
+        os.chdir(cwd)
+        
+        
+        libeventUrl = self.config.get("setup", "libevent")
+        libeventResourcePath = setupUtil.getTGZResource(libeventUrl, self.config.get("setup", "download"), self.config.get("setup", "build"))
+
+        cwd = os.getcwd()
+        os.chdir(libeventResourcePath)
+        
+        subprocess.call(("./configure --prefix="+installPathRoot+" CFLAGS=\"-fPIC -I"+installPathRoot+"\" LDFLAGS=\"-L"+installPathRoot+"\"").split())
+        subprocess.call("make".split())
+        subprocess.call("make install".split())
+        os.chdir(cwd)
+        
         pass
     
     def doInteractiveSetup(self):
+        # clear all build cache, not download cache
+        shutil.rmtree(self.config.get("setup", "build"))
+        
         query = "Please enter the root install path for Shadow and its plug-ins and dependencies. The default is recommended. (**Required**)"
-        default = os.path.abspath(HOME+"/.local/")
+        default = self.config.get("setup", "install-root")
         installPathRoot = self.popup(query, default)
         # install path is required, return
         # TODO should log this
         if installPathRoot is None: return
         
         query = "We need to download and build a custom version of OpenSSL for Shadow applications that use it. If your system version of OpenSSL was configured with \'-fPIC shared\', you may be able to ignore this by pressing ESC. In that case you will need to provide the path to your OpenSSL install. (Note - if a local copy is cached, no download will be performed.)"
-        default = "http://www.openssl.org/source/openssl-1.0.0d.tar.gz"
+        default = self.config.get("setup", "openssl")
         opensslUrl = self.popup(query, default)
         opensslInstallPath = installPathRoot
         
@@ -170,10 +204,10 @@ class SetupController:
             if opensslInstallPath is None: return
         else:
             # do the download and install
-            pass
+            resourcePath = setupUtil.getTGZResource(opensslUrl, self.config.get("setup", "download"), self.config.get("setup", "build"))
         
         query = "We need to download and build a custom version of libevent-2.0 for Shadow applications that use it. If your system version of libevent-2.0 was configured with \'CFLAGS=\"-fPIC -I"+opensslInstallPath+"\" LDFLAGS=\"-L"+opensslInstallPath+"\"\', you may be able to ignore this by pressing ESC. (Note - if a local copy is cached, no download will be performed.)"
-        default = "http://monkey.org/~provos/libevent-2.0.11-stable.tar.gz"
+        default = self.config.get("setup", "libevent")
         libeventUrl = self.popup(query, default)
         libeventInstallPath = installPathRoot
         
@@ -186,7 +220,7 @@ class SetupController:
             if libeventInstallPath is None: return
         else:
             # do the download and install
-            pass
+            resourcePath = setupUtil.getTGZResource(libeventUrl, self.config.get("setup", "download"), self.config.get("setup", "build"))
     
     def doUninstall(self):
         # spawn a thread to execute the uninstall commands and fill the log
