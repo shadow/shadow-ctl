@@ -1,7 +1,7 @@
 import curses, os, time
 from multiprocessing import Process, Pipe, RLock
 
-from core import panel, popupPanel, tools, control
+from core import panel, popupPanel, tools
 
 def pollPipe(conn, panel):
     pass
@@ -35,8 +35,11 @@ class ScrollPanel(panel.Panel):
         return copy
         
     def draw(self, width, height):
+        output = []
         self.dataLock.acquire()
-        output = tools.splitStr(self.data, width-2)
+        for item in self.data: 
+            lines = tools.splitStr(item, width-2)
+            for line in lines: output.append(line)
         self.dataLock.release()
         
         self.scrollLines = len(output)
@@ -85,7 +88,9 @@ class ScrollPanel(panel.Panel):
             d = os.path.dirname(path)
             if not os.path.exists(d): os.makedirs(d)
             with open(path, 'a') as f:
-                for line in self.scrollp.get(): f.write(line)
+                for line in self.get(): f.write(line)
+                
+            self.add("Log saved to " + path)
                 
     def getPipe(self):
         return self.pipeout

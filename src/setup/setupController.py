@@ -1,33 +1,10 @@
-import os, time, shutil, curses, ConfigParser, subprocess
+import os, time, shutil, curses, subprocess
 
-from core import labelPanel, control, controlPanel, scrollPanel, popupPanel
+from core import labelPanel, control, controlPanel, scrollPanel, popupPanel, config
 from setup import setupUtil
 
 REDRAW_RATE = 5
 HOME=os.getenv("HOME")
-DEFAULT_CONFIG_PATH=os.path.abspath(HOME+"/.shadow/shadow-cli.conf")
-DEFAULT_CONFIGS = {"setup" : {
-                              "install-root" : HOME+"/.local", 
-                              "download" : HOME+"/.shadow/download-cache/",
-                              "build" : HOME+"/.shadow/build-cache/",
-                              "openssl" : "http://www.openssl.org/source/openssl-1.0.0d.tar.gz",
-                              "libevent" : "http://monkey.org/~provos/libevent-2.0.11-stable.tar.gz",
-                              }}
-
-def setDefaultConfig():
-    d = os.path.dirname(DEFAULT_CONFIG_PATH)
-    if not os.path.exists(d): os.makedirs(d)
-    
-    conf = ConfigParser.ConfigParser()
-    conf.read(DEFAULT_CONFIG_PATH)
-    
-    for section in DEFAULT_CONFIGS:
-        if not conf.has_section(section): conf.add_section(section)
-        for option in DEFAULT_CONFIGS[section]:
-            value = DEFAULT_CONFIGS[section][option]
-            if not conf.has_option(section, option): conf.set(section, option, value)
-            
-    return conf
 
 class SetupController:
     def __init__(self, stdscr):
@@ -42,7 +19,7 @@ class SetupController:
         self.isDone = False
         self.lastDrawn = 0
         
-        self.config = setDefaultConfig()
+        self.config = config.loadConfig()
     
     def getScreen(self):
         return self.screen
@@ -81,7 +58,7 @@ class SetupController:
         self.controls = []
         self.controls.append(control.Control("Auto Setup", "Performs an automatic configuration of a Shadow installation by downloading, building, and installing Shadow and any missing dependencies to the user's home directory using default options. A build-cache is created in "+self.config.get("setup", "build")+" and not cleared. Future Auto Setups will re-use this cache."))
         self.controls.append(control.Control("Interactive Setup", "Interactively configure Shadow as above. This option first clears the build-cache that may have been previously created in "+self.config.get("setup", "build")+"."))
-        self.controls.append(control.Control("Uninstall Shadow", "Uninstall Shadow using cached installation options."))
+        self.controls.append(control.Control("Uninstall Shadow", "Uninstall Shadow and clear cache."))
         self.controls.append(control.Control("Quit", "Exit the Shadow Setup Wizard."))
         
         self.controlp.setControls(self.controls)
@@ -148,7 +125,7 @@ class SetupController:
                 n = c.getName()
                 if n == "Auto Setup": self.doAutoSetup()
                 elif n == "Interactive Setup": self.doInteractiveSetup()
-                elif n == "Uninstall": self.doUninstall()
+                elif n == "Uninstall Shadow": self.doUninstall()
                 elif n == "Quit": self.stop()
                 
     def doAutoSetup(self):
@@ -227,11 +204,32 @@ class SetupController:
         # remove ~/.local/bin/shadow*
         #        ~/.local/lib/libshadow*
         #      -rf  ~/.local/share/shadow
-        pass
+        dir = os.path.abspath(self.config.get("setup", "build"))
+        if os.path.exists(dir): shutil.rmtree(dir)
+        
+        dir = os.path.abspath(self.config.get("setup", "download"))
+        if os.path.exists(dir): shutil.rmtree(dir)
+        
+        dir = os.path.abspath(self.config.get("setup", "install-root")+"/share/shadow")
+        if os.path.exists(dir): shutil.rmtree(dir)
+        
+        top = os.path.abspath(self.config.get("setup", "install-root")+"/lib")
+        for root, dirs, files in os.walk(top, topdown=False):
+            for name in files:
+                if name.find("libshadow") > -1: os.remove(os.path.join(root, name))
+                
+        top = os.path.abspath(self.config.get("setup", "install-root")+"/bin")
+        for root, dirs, files in os.walk(top, topdown=False):
+            for name in files:
+                if name.find("shadow") > -1: os.remove(os.path.join(root, name))
+                
+        self.scrollp.add("Uninstall complete! Configuration options left in " + config.DEFAULT_CONFIG_PATH)
+        self.redraw(True)
                         
     def stop(self):
         """
         Terminates after the input is processed.
         """
         self.isDone = True
+        config.saveConfig(self.config)
         self.scrollp.join()
