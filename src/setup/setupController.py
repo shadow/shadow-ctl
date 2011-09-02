@@ -1,10 +1,25 @@
-import os, time, shutil, curses, subprocess
+import os, time, shutil, curses, subprocess, threading, multiprocessing
 
 from core import labelPanel, control, controlPanel, scrollPanel, popupPanel, config
 from setup import setupUtil
 
-REDRAW_RATE = 5
+REDRAW_RATE = 0.1
 HOME=os.getenv("HOME")
+
+def spin(q):
+    for i in range(1000): 
+        q.put("message " + str(i))
+        time.sleep(1)
+
+def test(q):
+    t = threading.Thread(target=spin, args=(q,))
+    t.setDaemon(True)
+    t.start()
+
+def spinTransfer(c, q, ctrl):
+    while True:
+        if ctrl.isDone: break
+        if c.poll(5): q.put(c.recv())
 
 class SetupController:
     def __init__(self, stdscr):
@@ -19,6 +34,8 @@ class SetupController:
         self.isDone = False
         self.lastDrawn = 0
         
+        self.pipe = None
+        self.workers = None
         self.config = config.loadConfig()
     
     def getScreen(self):
@@ -69,18 +86,18 @@ class SetupController:
         self.popupp = popupPanel.PopupPanel(self.screen, 2, 2)
         self.popupp.setVisible(False)
         
-        # used in case some commands want to chain execute another command
-        chainKey = None
+        self.pipe = multiprocessing.Pipe(False)
+        self.workers = []
+        self.workers.append(threading.Thread(target=spinTransfer, args=(self.pipe, self.scrollp.asyncQ, self)))
         
         while not self.isDone:
+            # flush the messages from other threads into the panel display
+            self.scrollp.flush()
             self.redraw(True)
             
             # wait for user keyboard input until timeout, unless an override was set
-            if chainKey:
-                key, chainKey = chainKey, None
-            else:
-                curses.halfdelay(REDRAW_RATE * 10)
-                key = self.screen.getch()
+            curses.halfdelay(int(REDRAW_RATE * 10))
+            key = self.screen.getch()
             
             if key == ord('q') or key == ord('Q'):
                 self.stop()
@@ -123,7 +140,7 @@ class SetupController:
         for c in self.controls:
             if c.isExecuted():
                 n = c.getName()
-                if n == "Auto Setup": self.doAutoSetup()
+                if n == "Auto Setup": self.doAutoSetup() #self.workers.append(threading.Thread(target=SetupController.doAutoSetup, args=(self,)))
                 elif n == "Interactive Setup": self.doInteractiveSetup()
                 elif n == "Uninstall Shadow": self.doUninstall()
                 elif n == "Quit": self.stop()
@@ -137,9 +154,9 @@ class SetupController:
         
         cwd = os.getcwd()
         os.chdir(opensslResourcePath)
-        subprocess.call(("./config --prefix="+installPathRoot+" -fPIC shared").split())
-        subprocess.call("make".split())
-        subprocess.call("make install".split())
+        subprocess.call(("./config --prefix="+installPathRoot+" -fPIC shared").split(), stderr=subprocess.STDOUT, stdout=self.pipe)
+        subprocess.call("make".split(), stderr=subprocess.STDOUT, stdout=self.pipe)
+        subprocess.call("make install".split(), stderr=subprocess.STDOUT, stdout=self.pipe)
         os.chdir(cwd)
         
         
@@ -149,9 +166,9 @@ class SetupController:
         cwd = os.getcwd()
         os.chdir(libeventResourcePath)
         
-        subprocess.call(("./configure --prefix="+installPathRoot+" CFLAGS=\"-fPIC -I"+installPathRoot+"\" LDFLAGS=\"-L"+installPathRoot+"\"").split())
-        subprocess.call("make".split())
-        subprocess.call("make install".split())
+        subprocess.call(("./configure --prefix="+installPathRoot+" CFLAGS=\"-fPIC -I"+installPathRoot+"\" LDFLAGS=\"-L"+installPathRoot+"\"").split(), stderr=subprocess.STDOUT, stdout=self.pipe)
+        subprocess.call("make".split(), stderr=subprocess.STDOUT, stdout=self.pipe)
+        subprocess.call("make install".split(), stderr=subprocess.STDOUT, stdout=self.pipe)
         os.chdir(cwd)
         
         pass
@@ -200,7 +217,6 @@ class SetupController:
             resourcePath = setupUtil.getTGZResource(libeventUrl, self.config.get("setup", "download"), self.config.get("setup", "build"))
     
     def doUninstall(self):
-        # spawn a thread to execute the uninstall commands and fill the log
         # remove ~/.local/bin/shadow*
         #        ~/.local/lib/libshadow*
         #      -rf  ~/.local/share/shadow
@@ -222,7 +238,7 @@ class SetupController:
         for root, dirs, files in os.walk(top, topdown=False):
             for name in files:
                 if name.find("shadow") > -1: os.remove(os.path.join(root, name))
-                
+        
         self.scrollp.add("Uninstall complete! Configuration options left in " + config.DEFAULT_CONFIG_PATH)
         self.redraw(True)
                         
@@ -232,4 +248,3 @@ class SetupController:
         """
         self.isDone = True
         config.saveConfig(self.config)
-        self.scrollp.join()

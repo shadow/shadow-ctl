@@ -1,46 +1,33 @@
 import curses, os, time
-from multiprocessing import Process, Pipe, RLock
+from multiprocessing import Queue
 
 from core import panel, popupPanel, tools
-
-def pollPipe(conn, panel):
-    pass
-    #while True: panel.add(conn.recv())
 
 class ScrollPanel(panel.Panel):
     
     def __init__(self, stdscr, name, top, backlog):
         panel.Panel.__init__(self, stdscr, name, top)
         self.data = []
-        self.dataLock = RLock()
+        self.asyncQ = Queue()
         self.backlog = backlog
         self.scrollTop = 0
         self.scrollBottom = 0
         self.scrollHeight = 0
-        self.pipein, self.pipeout = Pipe()
-        self.pipeProcess = Process(target=pollPipe, args=(self.pipein, self))
-        self.pipeProcess.start()
         
     def add(self, output):
-        self.dataLock.acquire()
         for line in output.split('\n'): self.data.append(line)
         if self.backlog > 0:
             while len(self.data) > self.backlog: self.data.pop(0)
-        self.dataLock.release()
             
     def get(self):
-        self.dataLock.acquire()
         copy = list(self.data)
-        self.dataLock.release()
         return copy
         
     def draw(self, width, height):
         output = []
-        self.dataLock.acquire()
         for item in self.data: 
             lines = tools.splitStr(item, width-2)
             for line in lines: output.append(line)
-        self.dataLock.release()
         
         self.scrollLines = len(output)
         self.scrollHeight = height-1
@@ -91,12 +78,10 @@ class ScrollPanel(panel.Panel):
                 for line in self.get(): f.write(line)
                 
             self.add("Log saved to " + path)
-                
-    def getPipe(self):
-        return self.pipeout
-    
-    def join(self):
-        self.pipein.close()
-        self.pipeout.close()
-        self.pipeProcess.join()
             
+    def flush(self):
+        """
+        Swap messages that other threads put into the async queue in to the data list
+        """
+        while not self.asyncQ.empty():
+            self.data.append(self.asyncQ.get(timeout=1))
