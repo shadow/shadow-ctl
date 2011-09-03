@@ -13,11 +13,15 @@ class ScrollPanel(panel.Panel):
         self.scrollTop = 0
         self.scrollBottom = 0
         self.scrollHeight = 0
+        self.scrollFollow = True
         
     def add(self, output):
         for line in output.split('\n'): self.data.append(line)
         if self.backlog > 0:
             while len(self.data) > self.backlog: self.data.pop(0)
+        if self.scrollFollow:
+            self.scrollBottom = len(self.data)
+            self.scrollTop = max(0, self.scrollBottom - self.scrollHeight)
             
     def get(self):
         copy = list(self.data)
@@ -32,6 +36,11 @@ class ScrollPanel(panel.Panel):
         self.scrollLines = len(output)
         self.scrollHeight = height-1
         self.scrollBottom = min(self.scrollTop + self.scrollHeight, self.scrollLines)
+        
+        # if we've navigated away from the bottom of the log, stop following new output
+        if self.scrollBottom != self.scrollLines: self.scrollFollow = False
+        # start following again if we navigate back to the bottom of the log
+        else: self.scrollFollow = True
         
         # dont draw unless we have data
         if self.scrollLines > 0:
@@ -49,20 +58,20 @@ class ScrollPanel(panel.Panel):
                 yoffset += 1
         
     def handleKey(self, key):
+        # we only care if they pushed one of the scroll keys
         if tools.isScrollKey(key):
             newScroll = tools.getScrollPosition(key, self.scrollTop, self.scrollHeight, self.scrollLines)
             if self.scrollTop != newScroll:
-                #self.valsLock.acquire()
                 self.scrollTop = newScroll
                 self.redraw(True)
-                #self.valsLock.release()
             return True
         else: return False
         
     def saveLog(self):
-        query = "Please enter the path to save the log file:"
+        query = "Please enter the path to save the log file, or press ESC to cancel:"
         default = os.path.abspath(os.getenv("HOME") + "/.shadow/cli-" + str(int(time.time())) + ".log")
         
+        # use a popup to ask about the path of the file to save
         p = popupPanel.PopupPanel(self.parent, 2, 2)
         p.setVisible(True)
         p.setQuery(query)
@@ -84,4 +93,4 @@ class ScrollPanel(panel.Panel):
         Swap messages that other threads put into the async queue in to the data list
         """
         while not self.asyncQ.empty():
-            self.data.append(self.asyncQ.get(timeout=1))
+            self.add(self.asyncQ.get(timeout=1))

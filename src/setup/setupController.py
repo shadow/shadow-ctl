@@ -89,7 +89,7 @@ class SetupController:
         self.pipe = multiprocessing.Pipe(False)
         self.workers = []
         self.workers.append(threading.Thread(target=spinTransfer, args=(self.pipe, self.scrollp.asyncQ, self)))
-        
+        test(self.scrollp.asyncQ)
         while not self.isDone:
             # flush the messages from other threads into the panel display
             self.scrollp.flush()
@@ -175,7 +175,8 @@ class SetupController:
     
     def doInteractiveSetup(self):
         # clear all build cache, not download cache
-        shutil.rmtree(self.config.get("setup", "build"))
+        dir = self.config.get("setup", "build")
+        if os.path.exists(dir): shutil.rmtree(dir)
         
         query = "Please enter the root install path for Shadow and its plug-ins and dependencies. The default is recommended. (**Required**)"
         default = self.config.get("setup", "install-root")
