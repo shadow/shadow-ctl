@@ -10,7 +10,7 @@ if not os.getenv("ESCDELAY"): os.putenv("ESCDELAY", "25")
 
 def main(stdscr):
     curses.delay_output(25)
-    setupController.SetupController(stdscr).start()
+    while setupController.SetupController(stdscr).start() is True: pass
   
 if __name__ == '__main__':
     try:

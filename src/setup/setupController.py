@@ -1,25 +1,10 @@
-import os, time, shutil, curses, subprocess, threading, multiprocessing
+import os, time, shutil, curses, threading
 
 from core import labelPanel, control, controlPanel, scrollPanel, popupPanel, config
 from setup import setupUtil
 
-REDRAW_RATE = 0.1
+REDRAW_RATE = 1
 HOME=os.getenv("HOME")
-
-def spin(q):
-    for i in range(1000): 
-        q.put("message " + str(i))
-        time.sleep(1)
-
-def test(q):
-    t = threading.Thread(target=spin, args=(q,))
-    t.setDaemon(True)
-    t.start()
-
-def spinTransfer(c, q, ctrl):
-    while True:
-        if ctrl.isDone: break
-        if c.poll(5): q.put(c.recv())
 
 class SetupController:
     def __init__(self, stdscr):
@@ -34,7 +19,6 @@ class SetupController:
         self.isDone = False
         self.lastDrawn = 0
         
-        self.pipe = None
         self.workers = None
         self.config = config.loadConfig()
     
@@ -64,7 +48,7 @@ class SetupController:
 
         # setup panels
         self.labelp = labelPanel.LabelPanel(self.screen)
-        self.labelp.setMessage("Shadow Setup Wizard -- q: quit")
+        self.labelp.setMessage("Shadow Setup Wizard -- r: restart, q: quit")
         self.labelp.setVisible(True)
         
         self.controlp = controlPanel.ControlPanel(self.screen, 1, 0)
@@ -86,10 +70,9 @@ class SetupController:
         self.popupp = popupPanel.PopupPanel(self.screen, 2, 2)
         self.popupp.setVisible(False)
         
-        self.pipe = multiprocessing.Pipe(False)
-        self.workers = []
-        self.workers.append(threading.Thread(target=spinTransfer, args=(self.pipe, self.scrollp.asyncQ, self)))
-        test(self.scrollp.asyncQ)
+        self.workers = list()
+
+        restart = False
         while not self.isDone:
             # flush the messages from other threads into the panel display
             self.scrollp.flush()
@@ -101,8 +84,9 @@ class SetupController:
             
             if key == ord('q') or key == ord('Q'):
                 self.stop()
-            elif key == ord('h') or key == ord('H'):
-                pass
+            elif key == ord('r') or key == ord('R'):
+                restart = True
+                self.stop()
             elif key == ord('s') or key == ord('S'):
                 if self.scrollp.isVisible(): self.scrollp.saveLog()
             elif key == ord('l') - 96:
@@ -114,9 +98,14 @@ class SetupController:
                 if self.controlp.isVisible():
                     isKeyConsumed = self.controlp.handleKey(key)
                     if isKeyConsumed:
-                        if self.needsTransition(): self.doTransition()
+                        if self.needsTransition(): 
+                            t = threading.Thread(target=SetupController.doTransition, args=(self,))
+                            self.workers.append(t)
+                            t.start()
                 elif self.scrollp.isVisible():
                     self.scrollp.handleKey(key)
+        
+        return restart
     
     def popup(self, query, default):
         self.popupp.setQuery(query)
@@ -140,39 +129,56 @@ class SetupController:
         for c in self.controls:
             if c.isExecuted():
                 n = c.getName()
-                if n == "Auto Setup": self.doAutoSetup() #self.workers.append(threading.Thread(target=SetupController.doAutoSetup, args=(self,)))
-                elif n == "Interactive Setup": self.doInteractiveSetup()
-                elif n == "Uninstall Shadow": self.doUninstall()
-                elif n == "Quit": self.stop()
+                r = True
+                if n == "Auto Setup": r = self.doAutoSetup()
+                elif n == "Interactive Setup": r = self.doInteractiveSetup()
+                elif n == "Uninstall Shadow": r = self.doUninstall()
+                elif n == "Quit": r = self.stop()
+                if not r: self.scrollp.asyncQ.put("**There was an ERROR. Check the log.")
                 
     def doAutoSetup(self):
         # spawn a thread to execute all the setup commands and fill the log
         installPathRoot = self.config.get("setup", "install-root")
         
         opensslUrl = self.config.get("setup", "openssl")
+        self.scrollp.asyncQ.put("Please wait while we download "+opensslUrl)
         opensslResourcePath = setupUtil.getTGZResource(opensslUrl, self.config.get("setup", "download"), self.config.get("setup", "build"))
+        self.scrollp.asyncQ.put("Finished downloading "+opensslUrl)
         
         cwd = os.getcwd()
         os.chdir(opensslResourcePath)
-        subprocess.call(("./config --prefix="+installPathRoot+" -fPIC shared").split(), stderr=subprocess.STDOUT, stdout=self.pipe)
-        subprocess.call("make".split(), stderr=subprocess.STDOUT, stdout=self.pipe)
-        subprocess.call("make install".split(), stderr=subprocess.STDOUT, stdout=self.pipe)
+        
+        cmd = "./config --prefix="+installPathRoot+" -fPIC shared"
+        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: return False
+        
+        cmd = "make"
+        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: return False
+        
+        cmd = "make install"
+        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: return False
+        
         os.chdir(cwd)
         
-        
         libeventUrl = self.config.get("setup", "libevent")
+        self.scrollp.asyncQ.put("Please wait while we download "+libeventUrl)
         libeventResourcePath = setupUtil.getTGZResource(libeventUrl, self.config.get("setup", "download"), self.config.get("setup", "build"))
+        self.scrollp.asyncQ.put("Finished downloading "+libeventUrl)
 
         cwd = os.getcwd()
         os.chdir(libeventResourcePath)
         
-        subprocess.call(("./configure --prefix="+installPathRoot+" CFLAGS=\"-fPIC -I"+installPathRoot+"\" LDFLAGS=\"-L"+installPathRoot+"\"").split(), stderr=subprocess.STDOUT, stdout=self.pipe)
-        subprocess.call("make".split(), stderr=subprocess.STDOUT, stdout=self.pipe)
-        subprocess.call("make install".split(), stderr=subprocess.STDOUT, stdout=self.pipe)
-        os.chdir(cwd)
+        cmd = "./configure --prefix="+installPathRoot+" CFLAGS=\"-fPIC -I"+installPathRoot+"\" LDFLAGS=\"-L"+installPathRoot+"\""
+        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: return False
         
-        pass
-    
+        cmd = "make"
+        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: return False
+        
+        cmd = "make install"
+        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: pass# return False
+        
+        os.chdir(cwd)
+        return True
+        
     def doInteractiveSetup(self):
         # clear all build cache, not download cache
         dir = self.config.get("setup", "build")
@@ -242,6 +248,8 @@ class SetupController:
         
         self.scrollp.add("Uninstall complete! Configuration options left in " + config.DEFAULT_CONFIG_PATH)
         self.redraw(True)
+        
+        return True
                         
     def stop(self):
         """
@@ -249,3 +257,6 @@ class SetupController:
         """
         self.isDone = True
         config.saveConfig(self.config)
+        self.scrollp.add("cli finished, waiting for threads... (CTRL-C to kill)")
+        self.scrollp.redraw(True)
+        for t in self.workers: t.join()

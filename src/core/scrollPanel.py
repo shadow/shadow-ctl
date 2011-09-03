@@ -94,3 +94,4 @@ class ScrollPanel(panel.Panel):
         """
         while not self.asyncQ.empty():
             self.add(self.asyncQ.get(timeout=1))
+            self.redraw(True)
