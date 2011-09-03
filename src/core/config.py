@@ -11,6 +11,9 @@ DEFAULT_CONFIGS = {"setup" : {
                               "build" : HOME+"/.shadow/build-cache/",
                               "openssl" : "http://www.openssl.org/source/openssl-1.0.0d.tar.gz",
                               "libevent" : "http://monkey.org/~provos/libevent-2.0.11-stable.tar.gz",
+                              "shadow" : "http://shadow.cs.umn.edu/downloads/shadow-release.tar.gz",
+                              "scallion" : "http://shadow.cs.umn.edu/downloads/shadow-scallion-release.tar.gz",
+                              "resources" : "http://shadow.cs.umn.edu/downloads/shadow-resources.tar.gz",
                               },
                    }
 

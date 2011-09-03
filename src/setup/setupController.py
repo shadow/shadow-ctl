@@ -60,7 +60,6 @@ class SetupController:
         self.controls.append(control.Control("Auto Setup", "Performs an automatic configuration of a Shadow installation by downloading, building, and installing Shadow and any missing dependencies to the user's home directory using default options. A build-cache is created in "+self.config.get("setup", "build")+" and not cleared. Future Auto Setups will re-use this cache."))
         self.controls.append(control.Control("Interactive Setup", "Interactively configure Shadow as above. This option first clears the build-cache that may have been previously created in "+self.config.get("setup", "build")+"."))
         self.controls.append(control.Control("Uninstall Shadow", "Uninstall Shadow and clear cache."))
-        self.controls.append(control.Control("Quit", "Exit the Shadow Setup Wizard."))
         
         self.controlp.setControls(self.controls)
 
@@ -125,6 +124,7 @@ class SetupController:
     def doTransition(self):
         self.controlp.setVisible(False)
         self.scrollp.setVisible(True)
+        self.redraw(True)
         
         for c in self.controls:
             if c.isExecuted():
@@ -133,51 +133,56 @@ class SetupController:
                 if n == "Auto Setup": r = self.doAutoSetup()
                 elif n == "Interactive Setup": r = self.doInteractiveSetup()
                 elif n == "Uninstall Shadow": r = self.doUninstall()
-                elif n == "Quit": r = self.stop()
                 if not r: self.scrollp.asyncQ.put("**There was an ERROR. Check the log.")
                 
     def doAutoSetup(self):
-        # spawn a thread to execute all the setup commands and fill the log
         installPathRoot = self.config.get("setup", "install-root")
         
-        opensslUrl = self.config.get("setup", "openssl")
-        self.scrollp.asyncQ.put("Please wait while we download "+opensslUrl)
-        opensslResourcePath = setupUtil.getTGZResource(opensslUrl, self.config.get("setup", "download"), self.config.get("setup", "build"))
-        self.scrollp.asyncQ.put("Finished downloading "+opensslUrl)
+        cmdlist = ["./config --prefix="+installPathRoot+" -fPIC shared", "make", "make install"]
+        if not self.autoHelper("openssl", cmdlist): return False
+        
+        cmdlist =  ["./configure --prefix="+installPathRoot+" CFLAGS=\"-fPIC -I"+installPathRoot+"\" LDFLAGS=\"-L"+installPathRoot+"\"", "make", "make install"]
+        if not self.autoHelper("libevent", cmdlist): return False
+        
+        cmdlist =  []
+        if not self.autoHelper("resources", cmdlist): return False
+        
+        # resource path returned for shadow is incorrect because of server link
+        resourcePath = self.downloadHelper("shadow")
+        for name in os.listdir(self.config.get("setup", "build")):
+            if name.find("shadow-shadow-") > -1: resourcePath = os.path.abspath(self.config.get("setup", "build")+"/"+name)
+        buildPath = resourcePath+"/build"
+        if not os.path.exists(buildPath): os.makedirs(buildPath)
+        cmdList = ["cmake " + resourcePath + " -DCMAKE_BUILD_PREFIX=" + buildPath + " -DCMAKE_INSTALL_PREFIX=" + installPathRoot + " -DCMAKE_EXTRA_INCLUDES=" + installPathRoot + "/include" + " -DCMAKE_EXTRA_LIBRARIES=" + installPathRoot + "/lib", "make", "make install"]
         
         cwd = os.getcwd()
-        os.chdir(opensslResourcePath)
+        os.chdir(buildPath)
         
-        cmd = "./config --prefix="+installPathRoot+" -fPIC shared"
-        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: return False
-        
-        cmd = "make"
-        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: return False
-        
-        cmd = "make install"
-        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: return False
-        
+        for cmd in cmdList:
+            if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: 
+                os.chdir(cwd)
+                return False
+            
         os.chdir(cwd)
-        
-        libeventUrl = self.config.get("setup", "libevent")
-        self.scrollp.asyncQ.put("Please wait while we download "+libeventUrl)
-        libeventResourcePath = setupUtil.getTGZResource(libeventUrl, self.config.get("setup", "download"), self.config.get("setup", "build"))
-        self.scrollp.asyncQ.put("Finished downloading "+libeventUrl)
-
+        return True
+    
+    def autoHelper(self, confOption, cmdList):
+        resourcePath = self.downloadHelper(confOption)
         cwd = os.getcwd()
-        os.chdir(libeventResourcePath)
+        os.chdir(resourcePath)
         
-        cmd = "./configure --prefix="+installPathRoot+" CFLAGS=\"-fPIC -I"+installPathRoot+"\" LDFLAGS=\"-L"+installPathRoot+"\""
-        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: return False
-        
-        cmd = "make"
-        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: return False
-        
-        cmd = "make install"
-        if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: pass# return False
+        for cmd in cmdList:
+            if setupUtil.callCollect(cmd, self.scrollp.asyncQ) != 0: return False
         
         os.chdir(cwd)
         return True
+    
+    def downloadHelper(self, confOption):
+        url = self.config.get("setup", confOption)
+        self.scrollp.asyncQ.put("Please wait while we download "+url)
+        resourcePath = setupUtil.getTGZResource(url, self.config.get("setup", "download"), self.config.get("setup", "build"))
+        self.scrollp.asyncQ.put("Finished downloading "+url)
+        return os.path.abspath(resourcePath)
         
     def doInteractiveSetup(self):
         # clear all build cache, not download cache

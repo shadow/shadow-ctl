@@ -50,8 +50,9 @@ def callCollect(commandString, outQ):
         line = p.stdout.readline()
         if not line: break
         outQ.put(line)
-        
-    outQ.put("Command: \'"+commandString+"\' returned "+str(p.returncode))
     
     # return the finished processes returncode
-    return p.wait()
+    r = p.wait()
+    outQ.put("Command: \'"+commandString+"\' returned "+str(r))
+    
+    return r
