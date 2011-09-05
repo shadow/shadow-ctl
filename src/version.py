@@ -1,0 +1,2 @@
+VERSION = "0.1.0"
+RELEASE_DATE = "September 6, 2011"

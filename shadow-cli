@@ -2,15 +2,26 @@
 
 import os, curses
 
-from core import panel
-from setup import setupController
+import src.setup
 
 # fix 1 second pause delay when pressing ESC
 if not os.getenv("ESCDELAY"): os.putenv("ESCDELAY", "25")
 
 def main(stdscr):
-    curses.delay_output(25)
-    while setupController.SetupController(stdscr).start() is True: pass
+    try: curses.delay_output(25)
+    except curses.error: pass
+    
+    # allows for background transparency
+    try: curses.use_default_colors()
+    except curses.error: pass
+
+    # makes the cursor invisible
+    try: curses.curs_set(0)
+    except curses.error: pass
+    
+    # launch the wizard UI loop
+    src.setup.start(stdscr)
+    src.setup.finish()
   
 if __name__ == '__main__':
     try:
@@ -21,6 +32,4 @@ if __name__ == '__main__':
         # (which would leave the user's terminal in a screwed up state). There is
         # still a tiny timing issue here (after the exception but before the flag
         # is set) but I've never seen it happen in practice.
-        
-        panel.HALT_ACTIVITY = True
-        # shutdownDaemons()
+        src.setup.finish()
