@@ -71,6 +71,8 @@ def start(stdscr):
             CONTROLLER.getPopupManager().showAboutPopup()
         elif key == ord('h') or key == ord('H'):
             helpkey = CONTROLLER.getPopupManager().showHelpPopup()
+            # if push h twice, use it to toggle help off
+            if helpkey == ord('h') or helpkey == ord('H'): helpkey = None
         elif key == ord('p') or key == ord('P'):
             CONTROLLER.setPaused(not CONTROLLER.isPaused())
         elif key == ord('q') or key == ord('Q'):
