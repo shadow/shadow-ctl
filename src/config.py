@@ -3,12 +3,15 @@ Default config options for the cli.
 '''
 import os, ConfigParser, curses
 from tools import *
+from enum import *
 
 # basic setup modes
-SetupMode = enum.Enum("AUTOLAST", "AUTODEFAULT", "INTERACTIVE", "UNINSTALL", "CANCEL")
+SetupMode = Enum("AUTOLAST", "AUTODEFAULT", "INTERACTIVE", "UNINSTALL", "CANCEL")
+
+
 
 # all options that can be configured
-Options = enum.Enum("ROOT", "DOOPENSSL", "OPENSSLROOT", "OPENSSLURL")
+Options = Enum("ROOT", "DOOPENSSL", "OPENSSLROOT", "OPENSSLURL")
 
 SetupOptions = {SetupMode.AUTODEFAULT: (Options.ROOT,
                                         Options.DOOPENSSL,

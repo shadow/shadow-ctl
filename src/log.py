@@ -17,6 +17,9 @@ LogColors = {LogLevels.ERROR : "red",
 LogShortcuts = {LogLevels.ERROR : "e",
                 LogLevels.INFO : "i",
                 LogLevels.DEBUG : "d", }
+LogDescriptions = {LogLevels.ERROR : "displays only error messages",
+                   LogLevels.INFO : "displays error and information messages (recommended)",
+                   LogLevels.DEBUG : "displays all messages (most verbose)", }
 
 # The height of the drawn content is estimated based on the last time we redraw
 # the panel. It's chiefly used for scrolling and the bar indicating its
@@ -62,43 +65,43 @@ class LogEntry():
 
     return self._displayMessage
 
-class LogManager(threading.Thread):
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self.setDaemon(True)
-
-        Panel.__init__(self, stdscr, "log", 0)
-        self.visible = False
-
-    def setVisible(self, visible):
-        self.visible = True
-
-    def log(self, level, message):
-        return self.screen
-
-    def clear(self):
-        pass
-
-    def save(self):
-        query = "Please enter the path to save the log file, or press ESC to cancel:"
-        default = os.path.abspath(os.getenv("HOME") + "/.shadow/cli-" + str(int(time.time())) + ".log")
-
-        # use a popup to ask about the path of the file to save
-        p = PopupPanel(self.parent, 2, 2)
-        p.setVisible(True)
-        p.setQuery(query)
-        p.setDefaultResponse(default)
-        p.redraw(True)
-        path = p.getUserResponse()
-
-        if path is not None:
-            path = os.path.abspath(path)
-            d = os.path.dirname(path)
-            if not os.path.exists(d): os.makedirs(d)
-            with open(path, 'a') as f:
-                for line in self.get(): f.write(line)
-
-            self.add("Log saved to " + path)
+#class LogManager(threading.Thread):
+#    def __init__(self):
+#        threading.Thread.__init__(self)
+#        self.setDaemon(True)
+#
+#        Panel.__init__(self, stdscr, "log", 0)
+#        self.visible = False
+#
+#    def setVisible(self, visible):
+#        self.visible = True
+#
+#    def log(self, level, message):
+#        return self.screen
+#
+#    def clear(self):
+#        pass
+#
+#    def save(self):
+#        query = "Please enter the path to save the log file, or press ESC to cancel:"
+#        default = os.path.abspath(os.getenv("HOME") + "/.shadow/cli-" + str(int(time.time())) + ".log")
+#
+#        # use a popup to ask about the path of the file to save
+#        p = PopupPanel(self.parent, 2, 2)
+#        p.setVisible(True)
+#        p.setQuery(query)
+#        p.setDefaultResponse(default)
+#        p.redraw(True)
+#        path = p.getUserResponse()
+#
+#        if path is not None:
+#            path = os.path.abspath(path)
+#            d = os.path.dirname(path)
+#            if not os.path.exists(d): os.makedirs(d)
+#            with open(path, 'a') as f:
+#                for line in self.get(): f.write(line)
+#
+#            self.add("Log saved to " + path)
 
 class LogPanel(Panel, threading.Thread):
   """
@@ -195,6 +198,8 @@ class LogPanel(Panel, threading.Thread):
     self.level = level
     self.valsLock.release()
 
+    self.log("set new log level '%s'" % (level))
+
     # must release valsLock for repopulate
     self.repopulate()
 
@@ -212,32 +217,34 @@ class LogPanel(Panel, threading.Thread):
 
     if popup:
       try:
-        i = 0
         # displays the available flags
         popup.win.box()
-        popup.addstr(0, 0, "Levels:", curses.A_STANDOUT)
-        eventLines = LogLevels.values()
+        popup.addstr(0, 0, "Select a log level:", curses.A_STANDOUT)
 
-        flags = ",".join(LogShortcuts.values())
-        popup.addstr(i + 1, 1, flags)
-
+        flags = []
+        for f in LogLevels.values():
+            self.log(f)
+            flags.append(LogShortcuts[f] + " : " + LogDescriptions[f])
+        flags.append("ESC : keep current level")
+        
+        for i in range(len(flags)):
+            popup.addstr((i + 1)*2, 1, flags[i])
         popup.win.refresh()
 
         # get new level
-        userInput = self.popupManager.inputPrompt("Level to display: ")
-        if userInput:
-          userInput = userInput.strip()
-
-          # validate input and make sure its an actual level
-          level = None
-          if len(userInput) == 1:
-              for k in LogShortcuts:
-                  if LogShortcuts[k] == userInput:
-                      level = k
-                      break
-
-          if level is not None: self.setLevel(level)
-          else: self.popupManager.showMsg("Invalid flags: %s" % str(userInput), 2)
+        curses.cbreak()
+        key = self.parent.getch()
+        
+        # validate input and make sure its an actual level
+        level = None
+        for k in LogShortcuts:
+            if key == ord(LogShortcuts[k]) or key == ord(LogShortcuts[k].upper()):
+                level = k
+                break
+        
+        if level is not None: self.setLevel(level)
+        elif key == 27: self.popupManager.showMsg("Canceled", 2)
+        else: self.popupManager.showMsg("Invalid choice: %s" % str(curses.keyname(key)), 2)
       finally: self.popupManager.finalize()
 
   def showSnapshotPrompt(self):

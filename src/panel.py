@@ -924,7 +924,7 @@ class ControlPanel(Panel):
 
             # draw the option name and description
             offset += 1
-            label = o.getName()
+            label = o[0]#.getName()
             self.addstr(y + offset, 2, label,
                         self.controlNameAttributes | extraAttributes)
             # set whitespace as non-bold due to curses pixel alignment bug
@@ -932,7 +932,7 @@ class ControlPanel(Panel):
                         self.controlDescriptionAttributes | extraAttributes)
             y += 1
 
-            description = splitStr(o.getDescription(), 54)
+            description = splitStr(o[1], 54)#.getDescription(), 54)
             for line in description:
                 self.addstr(y + offset, 2, padStr(line, 54),
                             self.controlDescriptionAttributes | extraAttributes)
@@ -943,11 +943,8 @@ class ControlPanel(Panel):
         if self.selectedIndex is not None:
             if key == curses.KEY_UP:
                 self.selectedIndex = (self.selectedIndex - 1) % len(self.controls)
-                return True
             elif key == curses.KEY_DOWN:
                 self.selectedIndex = (self.selectedIndex + 1) % len(self.controls)
-                return True
             elif isSelectionKey(key):
-                self.controls[self.selectedIndex].setExecuted(True)
-                return True
-        return False
+                return self.controls[self.selectedIndex][0]
+        return None

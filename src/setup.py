@@ -8,6 +8,7 @@ from controller import *
 from panel import *
 from popup import *
 from log import *
+from config import *
 
 CONTROLLER = None
 
@@ -29,13 +30,27 @@ def start(stdscr):
 #    l.setMessage("page 1 message1")
 #    CONTROLLER.addPagePanels(page1)
     
+    # setup the log panel as its own page
     lp = LogPanel(stdscr, LogLevels.DEBUG, CONTROLLER.getPopupManager())
-    lp.setVisible(True)
     CONTROLLER.addPagePanels([lp])
     
+    # start the threaded panels (e.g. log panel)
     for p in CONTROLLER.getDaemonPanels(): p.start()
     lp.log("shadow-cli initialized", level=LogLevels.INFO)
     
+    # make sure toolbar is drawn
+    CONTROLLER.redraw(True)
+    
+    # launch the setup wizard to configure and collect setup options
+    options = wizard(stdscr, lp)
+    
+    # use the configured options to launch the setup worker thread that will
+    # actually do the downloads, configure, make, etc
+    pass
+    
+    # now we want the log to be shown
+    lp.setVisible(True)
+
     helpkey = None
     while not CONTROLLER.isDone():
         
@@ -71,3 +86,30 @@ def finish():
     if CONTROLLER:
         for p in CONTROLLER.getDaemonPanels(): p.stop()
         for p in CONTROLLER.getDaemonPanels(): p.join()
+        
+def wizard(stdscr, logger):
+    cp = ControlPanel(stdscr, 1, 0)
+    cp.setMessage("Welcome to the Shadow Setup Wizard. Please select "
+                  "from the controls below to setup and install Shadow.")
+    cp.setVisible(True)
+
+    config = loadConfig()
+    
+    choices = []
+    choices.append(("Auto Setup", "Performs an automatic configuration of a Shadow installation by downloading, building, and installing Shadow and any missing dependencies to the user's home directory using default options. A build-cache is created in " + config.get("setup", "build") + " and not cleared. Future Auto Setups will re-use this cache."))
+    choices.append(("Interactive Setup", "Interactively configure Shadow as above. This option first clears the build-cache that may have been previously created in " + config.get("setup", "build") + "."))
+    choices.append(("Uninstall Shadow", "Uninstall Shadow and clear cache."))
+
+    cp.setControls(choices)
+    
+    curses.cbreak()
+    
+    # get the selected method of setup from the choices
+    selection = None
+    while True:
+        cp.redraw(True)
+        key = stdscr.getch()
+        selection = cp.handleKey(key)
+        if selection is not None: break
+
+    logger.log("wizard selected option \'%s\'" % (selection))
