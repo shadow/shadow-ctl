@@ -1,14 +1,4 @@
-import os, subprocess, shlex, urllib2, tarfile
-
-def download(url, target_path):
-    try:
-        u = urllib2.urlopen(url)
-        localfile = open(target_path, 'w')
-        localfile.write(u.read())
-        localfile.close()
-        return 0
-    except urllib2.URLError:
-        return -1
+import os
 
 def getTGZResource(url, downloadPathPrefix, extractPathPrefix):
     # setup paths
@@ -38,21 +28,3 @@ def getTGZResource(url, downloadPathPrefix, extractPathPrefix):
     # either the path already existed, or we downloaded and successfully extracted
     return name
 
-def callCollect(commandString, outQ):
-    outQ.put("Executing command: \'" + commandString + "\'")
-
-    # run the command in a separate process
-    # use shlex.split to avoid breaking up single args that have spaces in them into two args
-    p = subprocess.Popen(shlex.split(commandString), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-    # while the command is executing, watch its output and push to the queue
-    while True:
-        line = p.stdout.readline()
-        if not line: break
-        outQ.put(line)
-
-    # return the finished processes returncode
-    r = p.wait()
-    outQ.put("Command: \'" + commandString + "\' returned " + str(r))
-
-    return r

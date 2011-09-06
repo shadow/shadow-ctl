@@ -11,6 +11,7 @@ Taken from the arm project, developed by Damian Johnson under GPLv3
 import os
 import sys
 import curses
+import subprocess, shlex, urllib2, tarfile
 
 from curses.ascii import isprint
 from enum import *
@@ -708,3 +709,34 @@ def getFileErrorMsg(exc):
         excStr = excStr[0].lower() + excStr[1:]
 
     return excStr
+
+def loggedCall(cmd, logger):
+    logger.log("Executing command: \'" + cmd + "\'")
+
+    # run the command in a separate process
+    # use shlex.split to avoid breaking up single args that have spaces in them into two args
+    p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+    # while the command is executing, watch its output and push to the queue
+    while True:
+        # TODO if the command produces no output, can we sleep to avoid spinloop?
+        line = p.stdout.readline()
+        if not line: break
+        logger.log(line)
+
+    # return the finished processes returncode
+    r = p.wait()
+    logger.log("Command: \'" + cmd + "\' returned \'" + str(r) + "\'")
+
+    return r
+
+def download(url, target_path):
+    try:
+        u = urllib2.urlopen(url)
+        localfile = open(target_path, 'w')
+        localfile.write(u.read())
+        localfile.close()
+        return 0
+    except urllib2.URLError:
+        return -1
+    

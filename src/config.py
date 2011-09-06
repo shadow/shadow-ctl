@@ -1,84 +1,92 @@
 '''
-Default config options for the cli.
+Default config and options for the cli.
+
+There are two main types: options which the user can configure, such
+the install path, and configs that change the interface, such as the wizard
+welcome message, options labels, etc. We keep separate enums for each.
+
+Based on code from the arm project, developed by Damian Johnson under GPLv3
+(www.atagar.com - atagar@torproject.org)
 '''
-import os, ConfigParser, curses
+import os, curses
+from ConfigParser import SafeConfigParser
 from tools import *
 from enum import *
 
-# basic setup modes
-SetupMode = Enum("AUTOLAST", "AUTODEFAULT", "INTERACTIVE", "UNINSTALL", "CANCEL")
+# sections for each config file
+Sections = Enum("setup", "cli")
 
-
-
-# all options that can be configured
-Options = Enum("ROOT", "DOOPENSSL", "OPENSSLROOT", "OPENSSLURL")
-
-SetupOptions = {SetupMode.AUTODEFAULT: (Options.ROOT,
-                                        Options.DOOPENSSL,
-                                        Options.OPENSSLROOT,
-                                        Options.OPENSSLURL)}
-
-# other options provided in the prompts
-CANCEL, NEXT, BACK = "Cancel", "Next", "Back"
+CONFIG_PATH = os.path.expanduser("~/.shadow/shadow-cli.conf")
+CONFIG = None
+DEFAULT_CONFIG_PATH = os.path.abspath(os.path.dirname(__file__) + "/../config/shadow-cli.conf.default")
+DEFAULT_CONFIG = None
 
 DESC_SIZE = 5 # height of the description field
 MSG_COLOR = "green"
 OPTION_COLOR = "yellow"
 DISABLED_COLOR = "cyan"
 
-HOME = os.getenv("HOME")
-DEFAULT_CONFIG_PATH = os.path.abspath(HOME + "/.shadow/shadow-cli.conf")
+def _loadConfig(readCache=True):
+    d = SafeConfigParser()
+    d.read(DEFAULT_CONFIG_PATH)
+    
+    # do we return defaults only?
+    if not readCache or not os.path.exists(CONFIG_PATH): return d
+    
+    c = SafeConfigParser()
+    c.read(CONFIG_PATH)
 
-DEFAULT_CONFIGS = {"setup" : {
-                              "install-root" : HOME + "/.local",
-                              "download" : HOME + "/.shadow/download-cache/",
-                              "build" : HOME + "/.shadow/build-cache/",
-                              "openssl" : "http://www.openssl.org/source/openssl-1.0.0d.tar.gz",
-                              "libevent" : "http://monkey.org/~provos/libevent-2.0.11-stable.tar.gz",
-                              "shadow" : "http://shadow.cs.umn.edu/downloads/shadow-release.tar.gz",
-                              "scallion" : "http://shadow.cs.umn.edu/downloads/shadow-scallion-release.tar.gz",
-                              "resources" : "http://shadow.cs.umn.edu/downloads/shadow-resources.tar.gz",
-                              },
-                   }
+    # merge in the defaults that dont exist, if any
+    for section in d.sections():
+        if not c.has_section(section): c.add_section(section)
+        for option in d.options(section):
+            default = d.get(section, option)
+            if not c.has_option(section, option): c.set(section, option, default)
 
-def loadConfig(readCache=True):
-    d = os.path.dirname(DEFAULT_CONFIG_PATH)
-    if not os.path.exists(d): os.makedirs(d)
+    return c
 
-    conf = ConfigParser.ConfigParser()
-    if readCache: conf.read(DEFAULT_CONFIG_PATH)
 
-    for section in DEFAULT_CONFIGS:
-        if not conf.has_section(section): conf.add_section(section)
-        for option in DEFAULT_CONFIGS[section]:
-            value = DEFAULT_CONFIGS[section][option]
-            if not conf.has_option(section, option): conf.set(section, option, value)
+def getDefaultConfig():
+    global DEFAULT_CONFIG
+    # return the default configurations
+    # TODO - caller could modify and overwrite the defaults!! fix this.
+    if DEFAULT_CONFIG is None: DEFAULT_CONFIG = _loadConfig(False)
+    return DEFAULT_CONFIG
 
-    return conf
+def getConfig():
+    global CONFIG
+    if CONFIG is None: CONFIG = _loadConfig(True)
+    return CONFIG
+
+def isConfigured(): 
+    return os.path.exists(CONFIG_PATH)
 
 def saveConfig(conf):
-    with open(DEFAULT_CONFIG_PATH, 'w') as f: conf.write(f)
+    if conf is DEFAULT_CONFIG: return
+    d = os.path.dirname(CONFIG_PATH)
+    if not os.path.exists(d): os.makedirs(d)
+    with open(CONFIG_PATH, 'w') as f: conf.write(f)
 
-class ConfigOption:
+class Option:
     """
-    Attributes of a configuration option.
+    Represents a UI option on screen, and holds its attributes.
     """
 
-    def __init__(self, key, group, default):
+    def __init__(self, section, name, defaultValue=None):
         """
         Configuration option constructor.
 
         Arguments:
-          key     - configuration option identifier used when querying attributes
-          group   - configuration attribute group this belongs to
-          default - initial value, uses the config default if unset
+          section   - configuration attribute group this belongs to
+          name     - configuration option identifier used when querying attributes
+          defaultValue - initial value, uses the config default if unset
         """
 
-        self.key = key
-        self.group = group
+        self.key = name
+        self.group = section
         self.descriptionCache = None
         self.descriptionCacheArg = None
-        self.value = default
+        self.value = defaultValue if defaultValue is not None else getDefaultConfig().getOption(section, name)
         self.validator = None
         self._isEnabled = True
 
@@ -127,7 +135,7 @@ class ConfigOption:
         self.value = value
 
     def getLabel(self, prefix=""):
-        return prefix + "temp label"#CONFIG["wizard.label.%s" % self.group].get(self.key, "")
+        return prefix + getConfig().get(self.group, self.key)
 
     def getDescription(self, width, prefix=""):
         if not self.descriptionCache or self.descriptionCacheArg != width:
@@ -138,13 +146,13 @@ class ConfigOption:
 
         return [prefix + line for line in self.descriptionCache]
 
-class ToggleConfigOption(ConfigOption):
+class ToggleOption(Option):
     """
-    Configuration option representing a boolean.
+    An option representing a boolean.
     """
 
     def __init__(self, key, group, default, trueLabel, falseLabel):
-        ConfigOption.__init__(self, key, group, default)
+        Option.__init__(self, key, group, default)
         self.trueLabel = trueLabel
         self.falseLabel = falseLabel
 

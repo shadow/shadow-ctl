@@ -2,7 +2,7 @@
 Provides user prompts for setting up shadow.
 """
 
-import curses
+import curses, shutil
 
 from controller import *
 from panel import *
@@ -10,6 +10,7 @@ from popup import *
 from log import *
 from config import *
 
+SetupModes = Enum("LAST", "DEFAULT", "CUSTOM", "UNINSTALL", "CANCEL",)
 CONTROLLER = None
 
 def test(l):
@@ -41,17 +42,26 @@ def start(stdscr):
     # make sure toolbar is drawn
     CONTROLLER.redraw(True)
 
-    # launch the setup wizard to configure and collect setup options
-    options = wizard(stdscr, lp)
-
-    # use the configured options to launch the setup worker thread that will
-    # actually do the downloads, configure, make, etc
-    pass
-
+    # launch the setup wizard to get setup mode
+    mode = wizardAskMode(stdscr, lp)
+    helpkey = None
+    
+    if mode == SetupModes.LAST: wizardDoSetup(lp, getConfig())
+    elif mode == SetupModes.DEFAULT: wizardDoSetup(lp, getDefaultConfig())
+    elif mode == SetupModes.CUSTOM: 
+        # clear cache
+        cachedir = os.path.expanduser(getConfig().get("setup", "cache"))
+        if os.path.exists(cachedir): shutil.rmtree(cachedir)
+        
+        # use the wizard to configure and store custom options
+        wizardAskConfigure(stdscr, lp)
+        wizardDoSetup(lp, getConfig())
+    elif mode == SetupModes.UNINSTALL: wizardDoUninstall(lp, getConfig())
+    else: helpkey = ord('q')
+    
     # now we want the log to be shown
     lp.setVisible(True)
 
-    helpkey = None
     while not CONTROLLER.isDone():
 
         CONTROLLER.redraw(False)
@@ -83,24 +93,26 @@ def start(stdscr):
                 if isKeystrokeConsumed: break
 
 def finish():
+    global HALT_ACTIVITY
     HALT_ACTIVITY = True
     # stop and join threads
     if CONTROLLER:
         for p in CONTROLLER.getDaemonPanels(): p.stop()
         for p in CONTROLLER.getDaemonPanels(): p.join()
 
-def wizard(stdscr, logger):
+def wizardAskMode(stdscr, logger):
+    config = getConfig()
+
     cp = ControlPanel(stdscr, 1, 0)
-    cp.setMessage("Welcome to the Shadow Setup Wizard. Please select "
-                  "from the controls below to setup and install Shadow.")
+    cp.setMessage(config.get("cli", "description.welcome"))
     cp.setVisible(True)
 
-    config = loadConfig()
-
     choices = []
-    choices.append(("Auto Setup", "Performs an automatic configuration of a Shadow installation by downloading, building, and installing Shadow and any missing dependencies to the user's home directory using default options. A build-cache is created in " + config.get("setup", "build") + " and not cleared. Future Auto Setups will re-use this cache."))
-    choices.append(("Interactive Setup", "Interactively configure Shadow as above. This option first clears the build-cache that may have been previously created in " + config.get("setup", "build") + "."))
-    choices.append(("Uninstall Shadow", "Uninstall Shadow and clear cache."))
+    if isConfigured(): choices.append((config.get("cli", "label.mode.autolast"), config.get("cli", "description.mode.autolast")))
+    choices.append((config.get("cli", "label.mode.autodefault"), config.get("cli", "description.mode.autodefault")))
+    choices.append((config.get("cli", "label.mode.custom"), config.get("cli", "description.mode.custom")))
+    choices.append((config.get("cli", "label.mode.uninstall"), config.get("cli", "description.mode.uninstall")))
+    choices.append((config.get("cli", "label.mode.cancel"), config.get("cli", "description.mode.cancel")))
 
     cp.setControls(choices)
 
@@ -115,3 +127,26 @@ def wizard(stdscr, logger):
         if selection is not None: break
 
     logger.log("wizard selected option \'%s\'" % (selection))
+    
+    mode = SetupModes.CANCEL
+    if selection == config.get("cli", "label.mode.autolast"):
+        mode = SetupModes.LAST
+    elif selection == config.get("cli", "label.mode.autodefault"):
+        mode = SetupModes.DEFAULT
+    elif selection == config.get("cli", "label.mode.custom"):
+        mode = SetupModes.CUSTOM
+    elif selection == config.get("cli", "label.mode.uninstall"):
+        mode = SetupModes.UNINSTALL
+
+    return mode
+
+def wizardAskConfigure(stdscr, logger):
+    pass
+
+def wizardDoSetup(logger, config):
+    # use the configured options to launch the setup worker thread that will
+    # actually do the downloads, configure, make, etc
+    pass
+
+def wizardDoUninstall(logger, config):
+    pass
