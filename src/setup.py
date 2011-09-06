@@ -13,23 +13,11 @@ from config import *
 SetupModes = Enum("LAST", "DEFAULT", "CUSTOM", "UNINSTALL", "CANCEL",)
 CONTROLLER = None
 
-def test(l):
-    v = LogLevels.values()
-    for i in xrange(0, 10000):
-        l._log(str(i), v[i % 3])
-        time.sleep(0.001)
-
 def start(stdscr):
     global CONTROLLER
 
     # main controller that handles all the panels, popups, etc
     CONTROLLER = Controller(stdscr, "p: pause, h: help, q: quit")
-
-#    page1 = []
-#    l = LabelPanel(stdscr)
-#    l.setVisible(True)
-#    l.setMessage("page 1 message1")
-#    CONTROLLER.addPagePanels(page1)
 
     # setup the log panel as its own page
     lp = LogPanel(stdscr, LogLevels.DEBUG, CONTROLLER.getPopupManager())
@@ -47,7 +35,9 @@ def start(stdscr):
     helpkey = None
     
     if mode == SetupModes.LAST: wizardDoSetup(getConfig(), lp)
-    elif mode == SetupModes.DEFAULT: wizardDoSetup(getDefaultConfig(), lp)
+    elif mode == SetupModes.DEFAULT: 
+        wizardDoClearCache(getConfig(), lp)
+        wizardDoSetup(getDefaultConfig(), lp)
     elif mode == SetupModes.CUSTOM: 
         # use the wizard to configure and store custom options
         wizardDoClearCache(getConfig(), lp)
@@ -58,6 +48,8 @@ def start(stdscr):
     
     # now we want the log to be shown
     lp.setVisible(True)
+    # need to force a redraw to completely clear wizard
+    CONTROLLER.redraw(True)
 
     while not CONTROLLER.isDone():
 
@@ -145,18 +137,21 @@ def wizardDoSetup(config, logger):
     # actually do the downloads, configure, make, etc
     pass
 
-def wizardDoClearCache(config, logger):
+def wizardDoClearCache(config, logger, doBuildCache=True, doDownloadCache=False):
     cachedir = os.path.expanduser(config.get("setup", "cache"))
-    if os.path.exists(cachedir): shutil.rmtree(cachedir)
-    logger.debug("removed directory: " + cachedir)
-
+    buildcachedir = cachedir + "/build"
+    downloadcachedir = cachedir + "/download"
+    
+    for (do, d) in [(doBuildCache, buildcachedir), (doDownloadCache, downloadcachedir)]:
+        if do and os.path.exists(d): 
+            shutil.rmtree(d)
+            logger.debug("removed directory: " + d)
+        
 def wizardDoUninstall(config, logger):
     # shadow related files that need to be uninstalled:
     # prefix/bin/shadow*
     # prefix/lib/libshadow*
     # prefix/share/shadow/
-    
-    wizardDoClearCache(config, logger)
     
     prefixd = os.path.abspath(os.path.expanduser(config.get("setup", "prefix")))
     shareshadowd = prefixd + "/share/shadow"
