@@ -711,7 +711,7 @@ def getFileErrorMsg(exc):
     return excStr
 
 def loggedCall(cmd, logger):
-    logger.log("Executing command: \'" + cmd + "\'")
+    logger.info("Executing command: \'" + cmd + "\'")
 
     # run the command in a separate process
     # use shlex.split to avoid breaking up single args that have spaces in them into two args
@@ -722,11 +722,11 @@ def loggedCall(cmd, logger):
         # TODO if the command produces no output, can we sleep to avoid spinloop?
         line = p.stdout.readline()
         if not line: break
-        logger.log(line)
+        logger.debug(line)
 
     # return the finished processes returncode
     r = p.wait()
-    logger.log("Command: \'" + cmd + "\' returned \'" + str(r) + "\'")
+    logger.info("Command: \'" + cmd + "\' returned \'" + str(r) + "\'")
 
     return r
 

@@ -154,7 +154,7 @@ class LogPanel(Panel, threading.Thread):
 
         self.valsLock.release()
 
-    def log(self, message, level=LogLevels.DEBUG):
+    def _log(self, message, level):
         """
         Notes message and redraws log. If paused it's held in a temporary buffer.
 
@@ -183,7 +183,16 @@ class LogPanel(Panel, threading.Thread):
             self._cond.release()
 
         self.valsLock.release()
+        
+    def error(self, message):
+        self._log(message, LogLevels.ERROR)
 
+    def info(self, message):
+        self._log(message, LogLevels.INFO)
+        
+    def debug(self, message):
+        self._log(message, LogLevels.DEBUG)
+        
     def setLevel(self, level):
         """
         Sets the event types recognized by the panel.
@@ -198,7 +207,7 @@ class LogPanel(Panel, threading.Thread):
         self.level = level
         self.valsLock.release()
 
-        self.log("set new log level '%s'" % (level))
+        self.debug("set new log level '%s'" % (level))
 
         # must release valsLock for repopulate
         self.repopulate()
@@ -223,7 +232,7 @@ class LogPanel(Panel, threading.Thread):
 
                 flags = []
                 for f in LogLevels.values():
-                    self.log(f)
+                    self.debug(f)
                     flags.append(LogShortcuts[f] + " : " + LogDescriptions[f])
                 flags.append("ESC : keep current level")
 
@@ -428,7 +437,7 @@ class LogPanel(Panel, threading.Thread):
         self.lastContentHeight = newContentHeight
         if forceRedraw:
             forceRedrawReason = "redrawing the log panel with the corrected content height (%s)" % forceRedrawReason
-            #log.log(self._config["log.logPanel.forceDoubleRedraw"], forceRedrawReason)
+            #log.debug(self._config["log.logPanel.forceDoubleRedraw"], forceRedrawReason)
             self.redraw(True)
 
         self.valsLock.release()

@@ -16,7 +16,7 @@ CONTROLLER = None
 def test(l):
     v = LogLevels.values()
     for i in xrange(0, 10000):
-        l.log(str(i), v[i % 3])
+        l._log(str(i), v[i % 3])
         time.sleep(0.001)
 
 def start(stdscr):
@@ -37,7 +37,7 @@ def start(stdscr):
 
     # start the threaded panels (e.g. log panel)
     for p in CONTROLLER.getDaemonPanels(): p.start()
-    lp.log("shadow-cli initialized", level=LogLevels.INFO)
+    lp.info("shadow-cli initialized")
 
     # make sure toolbar is drawn
     CONTROLLER.redraw(True)
@@ -46,17 +46,14 @@ def start(stdscr):
     mode = wizardAskMode(stdscr, lp)
     helpkey = None
     
-    if mode == SetupModes.LAST: wizardDoSetup(lp, getConfig())
-    elif mode == SetupModes.DEFAULT: wizardDoSetup(lp, getDefaultConfig())
+    if mode == SetupModes.LAST: wizardDoSetup(getConfig(), lp)
+    elif mode == SetupModes.DEFAULT: wizardDoSetup(getDefaultConfig(), lp)
     elif mode == SetupModes.CUSTOM: 
-        # clear cache
-        cachedir = os.path.expanduser(getConfig().get("setup", "cache"))
-        if os.path.exists(cachedir): shutil.rmtree(cachedir)
-        
         # use the wizard to configure and store custom options
+        wizardDoClearCache(getConfig(), lp)
         wizardAskConfigure(stdscr, lp)
-        wizardDoSetup(lp, getConfig())
-    elif mode == SetupModes.UNINSTALL: wizardDoUninstall(lp, getConfig())
+        wizardDoSetup(getConfig(), lp)
+    elif mode == SetupModes.UNINSTALL: wizardDoUninstall(getConfig(), lp)
     else: helpkey = ord('q')
     
     # now we want the log to be shown
@@ -126,7 +123,7 @@ def wizardAskMode(stdscr, logger):
         selection = cp.handleKey(key)
         if selection is not None: break
 
-    logger.log("wizard selected option \'%s\'" % (selection))
+    logger.debug("wizard selected option \'%s\'" % (selection))
     
     mode = SetupModes.CANCEL
     if selection == config.get("cli", "label.mode.autolast"):
@@ -143,10 +140,44 @@ def wizardAskMode(stdscr, logger):
 def wizardAskConfigure(stdscr, logger):
     pass
 
-def wizardDoSetup(logger, config):
+def wizardDoSetup(config, logger):
     # use the configured options to launch the setup worker thread that will
     # actually do the downloads, configure, make, etc
     pass
 
-def wizardDoUninstall(logger, config):
-    pass
+def wizardDoClearCache(config, logger):
+    cachedir = os.path.expanduser(config.get("setup", "cache"))
+    if os.path.exists(cachedir): shutil.rmtree(cachedir)
+    logger.debug("removed directory: " + cachedir)
+
+def wizardDoUninstall(config, logger):
+    # shadow related files that need to be uninstalled:
+    # prefix/bin/shadow*
+    # prefix/lib/libshadow*
+    # prefix/share/shadow/
+    
+    wizardDoClearCache(config, logger)
+    
+    prefixd = os.path.abspath(os.path.expanduser(config.get("setup", "prefix")))
+    shareshadowd = prefixd + "/share/shadow"
+    libd = prefixd + "/lib"
+    bind = prefixd + "/bin"
+    based = os.path.abspath(os.path.expanduser(CONFIG_BASE))
+    
+    if os.path.exists(shareshadowd): 
+        shutil.rmtree(shareshadowd)
+        logger.debug("removed directory: " + shareshadowd)
+
+    for (d, s) in [(libd, "libshadow"), (bind, "shadow")]:
+        for root, dirs, files in os.walk(d, topdown=False):
+            for name in files:
+                if name.find(s) > -1: 
+                    f = os.path.join(root, name)
+                    os.remove(f)
+                    logger.debug("removed file: " + f)
+
+    if os.path.exists(based): 
+        shutil.rmtree(based)
+        logger.debug("removed directory: " + based)
+
+    logger.info("Uninstall complete!")

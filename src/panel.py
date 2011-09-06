@@ -730,7 +730,7 @@ class Panel():
 
             # note: doing this log before setting win produces an infinite loop
             #msg = "recreating panel '%s' with the dimensions of %i/%i" % (self.getName(), newHeight, newWidth)
-            #log.log(CONFIG["log.panelRecreated"], msg)
+            #log.debug(CONFIG["log.panelRecreated"], msg)
         return recreate
 
 class LabelPanel(Panel):

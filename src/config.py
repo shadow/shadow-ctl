@@ -16,7 +16,8 @@ from enum import *
 # sections for each config file
 Sections = Enum("setup", "cli")
 
-CONFIG_PATH = os.path.expanduser("~/.shadow/shadow-cli.conf")
+CONFIG_BASE = "~/.shadow"
+CONFIG_PATH = os.path.expanduser(CONFIG_BASE + "/shadow-cli.conf")
 CONFIG = None
 DEFAULT_CONFIG_PATH = os.path.abspath(os.path.dirname(__file__) + "/../config/shadow-cli.conf.default")
 DEFAULT_CONFIG = None
