@@ -12,301 +12,301 @@ from popup import *
 REFRESH_RATE = 1
 
 class Controller:
-  """
-  Tracks the global state of the interface
-  """
-
-  def __init__(self, stdscr, defaultToolBarMessage):
     """
-    Creates a new controller instance. Panel lists are ordered as they appear,
-    top to bottom on the page.
-    
-    Arguments:
-      stdscr                   - curses window
-      defaultToolBarMessage    - default message for the toolbar
+    Tracks the global state of the interface
     """
 
-    self._screen = stdscr
-    self._stickyPanels = []
-    self._pagePanels = []
-    self._page = 0
-    self._isPaused = False
-    self._forceRedraw = False
-    self._isDone = False
-    self._lastDrawn = 0
-    
-    # add sticky title
-    un = os.uname()
-    head = LabelPanel(stdscr)
-    head.setMessage("shadow-cli on %s (%s %s)" % (un[1], un[0], un[2]), curses.A_BOLD | curses.A_REVERSE)
-    self.addStickyPanel(head)
-    head.setVisible(True)
+    def __init__(self, stdscr, defaultToolBarMessage):
+        """
+        Creates a new controller instance. Panel lists are ordered as they appear,
+        top to bottom on the page.
 
-    self._toolBar = LabelPanel(stdscr)
-    self._toolBarMsg = defaultToolBarMessage
-    self.setToolBarMessage()
-    
-    # toolbar is always shown on the top line
-    self.addStickyPanel(self._toolBar)
-    self._toolBar.setVisible(True)
-    
-    # popup manager for displaying messages on the controller toolbar
-    self._popupManager = PopupManager(self)
+        Arguments:
+          stdscr                   - curses window
+          defaultToolBarMessage    - default message for the toolbar
+        """
 
-  def getScreen(self):
-    """
-    Provides our curses window.
-    """
+        self._screen = stdscr
+        self._stickyPanels = []
+        self._pagePanels = []
+        self._page = 0
+        self._isPaused = False
+        self._forceRedraw = False
+        self._isDone = False
+        self._lastDrawn = 0
 
-    return self._screen
+        # add sticky title
+        un = os.uname()
+        head = LabelPanel(stdscr)
+        head.setMessage("shadow-cli on %s (%s %s)" % (un[1], un[0], un[2]), curses.A_BOLD | curses.A_REVERSE)
+        self.addStickyPanel(head)
+        head.setVisible(True)
 
-  def getPopupManager(self):
-    return self._popupManager
+        self._toolBar = LabelPanel(stdscr)
+        self._toolBarMsg = defaultToolBarMessage
+        self.setToolBarMessage()
 
-  def addStickyPanel(self, panel):
-    """
-    panel - shown at the top of each page
-    """
-    
-    self._stickyPanels.append(panel)
-    
-  def addPagePanels(self, page):
-    """
-    page   - list of the panels for this page
-    """
-    self._pagePanels.append(page)
-    
-  def getPageCount(self):
-    """
-    Provides the number of pages the interface has. This may be zero if all
-    page panels have been disabled.
-    """
+        # toolbar is always shown on the top line
+        self.addStickyPanel(self._toolBar)
+        self._toolBar.setVisible(True)
 
-    return len(self._pagePanels)
+        # popup manager for displaying messages on the controller toolbar
+        self._popupManager = PopupManager(self)
 
-  def getPage(self):
-    """
-    Provides the number belonging to this page. Page numbers start at zero.
-    """
+    def getScreen(self):
+        """
+        Provides our curses window.
+        """
 
-    return self._page
+        return self._screen
 
-  def setPage(self, pageNumber):
-    """
-    Sets the selected page, raising a ValueError if the page number is invalid.
-    
-    Arguments:
-      pageNumber - page number to be selected
-    """
+    def getPopupManager(self):
+        return self._popupManager
 
-    if pageNumber < 0 or pageNumber >= self.getPageCount():
-      raise ValueError("Invalid page number: %i" % pageNumber)
+    def addStickyPanel(self, panel):
+        """
+        panel - shown at the top of each page
+        """
 
-    if pageNumber != self._page:
-      # set the current page number
-      self._page = pageNumber
-      # set the message for the next page
-      self.setToolBarMessage()
-      # make sure the panels for the new page are visible      
-      for p in self.getAllPanels(): p.setVisible(p in self.getDisplayPanels(pageNumber, True))
-      # force a redraw, clearing the screen on the next refresh
-      self._forceRedraw = True
-      self._screen.clear()
+        self._stickyPanels.append(panel)
 
-  def nextPage(self):
-    """
-    Increments the page number.
-    """
+    def addPagePanels(self, page):
+        """
+        page   - list of the panels for this page
+        """
+        self._pagePanels.append(page)
 
-    self.setPage((self._page + 1) % len(self._pagePanels))
+    def getPageCount(self):
+        """
+        Provides the number of pages the interface has. This may be zero if all
+        page panels have been disabled.
+        """
 
-  def prevPage(self):
-    """
-    Decrements the page number.
-    """
+        return len(self._pagePanels)
 
-    self.setPage((self._page - 1) % len(self._pagePanels))
+    def getPage(self):
+        """
+        Provides the number belonging to this page. Page numbers start at zero.
+        """
 
-  def isPaused(self):
-    """
-    True if the interface is paused, false otherwise.
-    """
+        return self._page
 
-    return self._isPaused
+    def setPage(self, pageNumber):
+        """
+        Sets the selected page, raising a ValueError if the page number is invalid.
 
-  def setPaused(self, isPause):
-    """
-    Sets the interface to be paused or unpaused.
-    """
+        Arguments:
+          pageNumber - page number to be selected
+        """
 
-    if isPause != self._isPaused:
-      self._isPaused = isPause
-      self._forceRedraw = True
-      self.setToolBarMessage()
+        if pageNumber < 0 or pageNumber >= self.getPageCount():
+            raise ValueError("Invalid page number: %i" % pageNumber)
 
-      for panelImpl in self.getAllPanels():
-        panelImpl.setPaused(isPause)
+        if pageNumber != self._page:
+            # set the current page number
+            self._page = pageNumber
+            # set the message for the next page
+            self.setToolBarMessage()
+            # make sure the panels for the new page are visible
+            for p in self.getAllPanels(): p.setVisible(p in self.getDisplayPanels(pageNumber, True))
+            # force a redraw, clearing the screen on the next refresh
+            self._forceRedraw = True
+            self._screen.clear()
 
-  def getPanel(self, name):
-    """
-    Provides the panel with the given identifier. This returns None if no such
-    panel exists.
-    
-    Arguments:
-      name - name of the panel to be fetched
-    """
+    def nextPage(self):
+        """
+        Increments the page number.
+        """
 
-    for panelImpl in self.getAllPanels():
-      if panelImpl.getName() == name:
-        return panelImpl
+        self.setPage((self._page + 1) % len(self._pagePanels))
 
-    return None
+    def prevPage(self):
+        """
+        Decrements the page number.
+        """
 
-  def getStickyPanels(self):
-    """
-    Provides the panels visibile at the top of every page.
-    """
+        self.setPage((self._page - 1) % len(self._pagePanels))
 
-    return list(self._stickyPanels)
+    def isPaused(self):
+        """
+        True if the interface is paused, false otherwise.
+        """
 
-  def getDisplayPanels(self, pageNumber=None, includeSticky=True):
-    """
-    Provides all panels belonging to a page and sticky content above it. This
-    is ordered they way they are presented (top to bottom) on the page.
-    
-    Arguments:
-      pageNumber    - page number of the panels to be returned, the current
-                      page if None
-      includeSticky - includes sticky panels in the results if true
-    """
+        return self._isPaused
 
-    returnPage = self._page if pageNumber == None else pageNumber
+    def setPaused(self, isPause):
+        """
+        Sets the interface to be paused or unpaused.
+        """
 
-    if self._pagePanels:
-      if includeSticky:
-        return self._stickyPanels + self._pagePanels[returnPage]
-      else: return list(self._pagePanels[returnPage])
-    else: return self._stickyPanels if includeSticky else []
+        if isPause != self._isPaused:
+            self._isPaused = isPause
+            self._forceRedraw = True
+            self.setToolBarMessage()
 
-  def getDaemonPanels(self):
-    """
-    Provides thread panels.
-    """
+            for panelImpl in self.getAllPanels():
+                panelImpl.setPaused(isPause)
 
-    threadPanels = []
-    for panelImpl in self.getAllPanels():
-      if isinstance(panelImpl, threading.Thread):
-        threadPanels.append(panelImpl)
+    def getPanel(self, name):
+        """
+        Provides the panel with the given identifier. This returns None if no such
+        panel exists.
 
-    return threadPanels
+        Arguments:
+          name - name of the panel to be fetched
+        """
 
-  def getAllPanels(self):
-    """
-    Provides all panels in the interface.
-    """
+        for panelImpl in self.getAllPanels():
+            if panelImpl.getName() == name:
+                return panelImpl
 
-    allPanels = list(self._stickyPanels)
+        return None
 
-    for page in self._pagePanels:
-      allPanels += list(page)
+    def getStickyPanels(self):
+        """
+        Provides the panels visibile at the top of every page.
+        """
 
-    return allPanels
+        return list(self._stickyPanels)
 
-  def redraw(self, force=True):
-    """
-    Redraws the displayed panel content.
-    
-    Arguments:
-      force - redraws reguardless of if it's needed if true, otherwise ignores
-              the request when there arne't changes to be displayed
-    """
+    def getDisplayPanels(self, pageNumber=None, includeSticky=True):
+        """
+        Provides all panels belonging to a page and sticky content above it. This
+        is ordered they way they are presented (top to bottom) on the page.
 
-    force |= self._forceRedraw
-    self._forceRedraw = False
+        Arguments:
+          pageNumber    - page number of the panels to be returned, the current
+                          page if None
+          includeSticky - includes sticky panels in the results if true
+        """
 
-    currentTime = time.time()
-    if REFRESH_RATE != 0:
-      if self._lastDrawn + REFRESH_RATE <= currentTime:
-        force = True
+        returnPage = self._page if pageNumber == None else pageNumber
 
-    displayPanels = self.getDisplayPanels()
+        if self._pagePanels:
+            if includeSticky:
+                return self._stickyPanels + self._pagePanels[returnPage]
+            else: return list(self._pagePanels[returnPage])
+        else: return self._stickyPanels if includeSticky else []
 
-    occupiedContent = 0
-    for panelImpl in displayPanels:
-      panelImpl.setTop(occupiedContent)
-      occupiedContent += panelImpl.getHeight()
+    def getDaemonPanels(self):
+        """
+        Provides thread panels.
+        """
 
-    for panelImpl in displayPanels:
-      panelImpl.redraw(force)
+        threadPanels = []
+        for panelImpl in self.getAllPanels():
+            if isinstance(panelImpl, threading.Thread):
+                threadPanels.append(panelImpl)
 
-    if force: self._lastDrawn = currentTime
+        return threadPanels
 
-  def requestRedraw(self):
-    """
-    Requests that all content is redrawn when the interface is next rendered.
-    """
+    def getAllPanels(self):
+        """
+        Provides all panels in the interface.
+        """
 
-    self._forceRedraw = True
+        allPanels = list(self._stickyPanels)
 
-  def getLastRedrawTime(self):
-    """
-    Provides the time when the content was last redrawn, zero if the content
-    has never been drawn.
-    """
+        for page in self._pagePanels:
+            allPanels += list(page)
 
-    return self._lastDrawn
+        return allPanels
 
-  def getToolBar(self):
-    return self._toolBar
+    def redraw(self, force=True):
+        """
+        Redraws the displayed panel content.
 
-  def setToolBarMessage(self, msg=None, attr=None, redraw=False):
-    """
-    Sets the message displayed in the interfaces control panel. This uses our
-    default prompt if no arguments are provided.
-    
-    Arguments:
-      msg    - string to be displayed
-      attr   - attribute for the label, normal text if undefined
-      redraw - redraws right away if true, otherwise redraws when display
-               content is next normally drawn
-    """
+        Arguments:
+          force - redraws reguardless of if it's needed if true, otherwise ignores
+                  the request when there arne't changes to be displayed
+        """
 
-    if msg == None:
-      if self.isPaused():
-        msg = "Paused"
-        attr = curses.A_STANDOUT
-      else:
-        page, count = self.getPage() + 1, self.getPageCount()
-        if count > 1: msg = "page %s / %s - %s" % (page, count, self._toolBarMsg)
-        else: msg = self._toolBarMsg
-        attr = curses.A_NORMAL
+        force |= self._forceRedraw
+        self._forceRedraw = False
 
-    self._toolBar.setMessage(msg, attr)
+        currentTime = time.time()
+        if REFRESH_RATE != 0:
+            if self._lastDrawn + REFRESH_RATE <= currentTime:
+                force = True
 
-    if redraw: self._toolBar.redraw(True)
-    else: self.forceRedraw = True
+        displayPanels = self.getDisplayPanels()
 
-  def getDataDirectory(self):
-    """
-    Provides the path where arm's resources are being placed. The path ends
-    with a slash and is created if it doesn't already exist.
-    """
+        occupiedContent = 0
+        for panelImpl in displayPanels:
+            panelImpl.setTop(occupiedContent)
+            occupiedContent += panelImpl.getHeight()
 
-    dataDir = os.path.expanduser(CONFIG["startup.dataDirectory"])
-    if not dataDir.endswith("/"): dataDir += "/"
-    if not os.path.exists(dataDir): os.makedirs(dataDir)
-    return dataDir
+        for panelImpl in displayPanels:
+            panelImpl.redraw(force)
 
-  def isDone(self):
-    """
-    True if arm should be terminated, false otherwise.
-    """
+        if force: self._lastDrawn = currentTime
 
-    return self._isDone
+    def requestRedraw(self):
+        """
+        Requests that all content is redrawn when the interface is next rendered.
+        """
 
-  def quit(self):
-    """
-    Terminates after the input is processed.
-    """
+        self._forceRedraw = True
 
-    self._isDone = True
+    def getLastRedrawTime(self):
+        """
+        Provides the time when the content was last redrawn, zero if the content
+        has never been drawn.
+        """
+
+        return self._lastDrawn
+
+    def getToolBar(self):
+        return self._toolBar
+
+    def setToolBarMessage(self, msg=None, attr=None, redraw=False):
+        """
+        Sets the message displayed in the interfaces control panel. This uses our
+        default prompt if no arguments are provided.
+
+        Arguments:
+          msg    - string to be displayed
+          attr   - attribute for the label, normal text if undefined
+          redraw - redraws right away if true, otherwise redraws when display
+                   content is next normally drawn
+        """
+
+        if msg == None:
+            if self.isPaused():
+                msg = "Paused"
+                attr = curses.A_STANDOUT
+            else:
+                page, count = self.getPage() + 1, self.getPageCount()
+                if count > 1: msg = "page %s / %s - %s" % (page, count, self._toolBarMsg)
+                else: msg = self._toolBarMsg
+                attr = curses.A_NORMAL
+
+        self._toolBar.setMessage(msg, attr)
+
+        if redraw: self._toolBar.redraw(True)
+        else: self.forceRedraw = True
+
+    def getDataDirectory(self):
+        """
+        Provides the path where arm's resources are being placed. The path ends
+        with a slash and is created if it doesn't already exist.
+        """
+
+        dataDir = os.path.expanduser(CONFIG["startup.dataDirectory"])
+        if not dataDir.endswith("/"): dataDir += "/"
+        if not os.path.exists(dataDir): os.makedirs(dataDir)
+        return dataDir
+
+    def isDone(self):
+        """
+        True if arm should be terminated, false otherwise.
+        """
+
+        return self._isDone
+
+    def quit(self):
+        """
+        Terminates after the input is processed.
+        """
+
+        self._isDone = True

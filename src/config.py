@@ -60,101 +60,101 @@ def saveConfig(conf):
     with open(DEFAULT_CONFIG_PATH, 'w') as f: conf.write(f)
 
 class ConfigOption:
-  """
-  Attributes of a configuration option.
-  """
-
-  def __init__(self, key, group, default):
     """
-    Configuration option constructor.
-    
-    Arguments:
-      key     - configuration option identifier used when querying attributes
-      group   - configuration attribute group this belongs to
-      default - initial value, uses the config default if unset
+    Attributes of a configuration option.
     """
 
-    self.key = key
-    self.group = group
-    self.descriptionCache = None
-    self.descriptionCacheArg = None
-    self.value = default
-    self.validator = None
-    self._isEnabled = True
+    def __init__(self, key, group, default):
+        """
+        Configuration option constructor.
 
-  def getKey(self):
-    return self.key
+        Arguments:
+          key     - configuration option identifier used when querying attributes
+          group   - configuration attribute group this belongs to
+          default - initial value, uses the config default if unset
+        """
 
-  def getValue(self):
-    return self.value
+        self.key = key
+        self.group = group
+        self.descriptionCache = None
+        self.descriptionCacheArg = None
+        self.value = default
+        self.validator = None
+        self._isEnabled = True
 
-  def getDisplayValue(self):
-    return self.value
+    def getKey(self):
+        return self.key
 
-  def getDisplayAttr(self):
-    myColor = OPTION_COLOR if self.isEnabled() else DISABLED_COLOR
-    return curses.A_BOLD | getColor(myColor)
+    def getValue(self):
+        return self.value
 
-  def isEnabled(self):
-    return self._isEnabled
+    def getDisplayValue(self):
+        return self.value
 
-  def setEnabled(self, isEnabled):
-    self._isEnabled = isEnabled
+    def getDisplayAttr(self):
+        myColor = OPTION_COLOR if self.isEnabled() else DISABLED_COLOR
+        return curses.A_BOLD | getColor(myColor)
 
-  def setValidator(self, validator):
-    """
-    Custom function used to check that a value is valid before setting it.
-    This functor should accept two arguments: this option and the value we're
-    attempting to set. If its invalid then a ValueError with the reason is
-    expected.
-    
-    Arguments:
-      validator - functor for checking the validitiy of values we set
-    """
+    def isEnabled(self):
+        return self._isEnabled
 
-    self.validator = validator
+    def setEnabled(self, isEnabled):
+        self._isEnabled = isEnabled
 
-  def setValue(self, value):
-    """
-    Attempts to set our value. If a validator has been set then we first check
-    if it's alright, raising a ValueError with the reason if not.
-    
-    Arguments:
-      value - value we're attempting to set
-    """
+    def setValidator(self, validator):
+        """
+        Custom function used to check that a value is valid before setting it.
+        This functor should accept two arguments: this option and the value we're
+        attempting to set. If its invalid then a ValueError with the reason is
+        expected.
 
-    if self.validator: self.validator(self, value)
-    self.value = value
+        Arguments:
+          validator - functor for checking the validitiy of values we set
+        """
 
-  def getLabel(self, prefix=""):
-    return prefix + "temp label"#CONFIG["wizard.label.%s" % self.group].get(self.key, "")
+        self.validator = validator
 
-  def getDescription(self, width, prefix=""):
-    if not self.descriptionCache or self.descriptionCacheArg != width:
-      #optDescription = CONFIG["wizard.description.%s" % self.group].get(self.key, "")
-      optDescription = "temp description"
-      self.descriptionCache = splitStr(optDescription, width)
-      self.descriptionCacheArg = width
+    def setValue(self, value):
+        """
+        Attempts to set our value. If a validator has been set then we first check
+        if it's alright, raising a ValueError with the reason if not.
 
-    return [prefix + line for line in self.descriptionCache]
+        Arguments:
+          value - value we're attempting to set
+        """
+
+        if self.validator: self.validator(self, value)
+        self.value = value
+
+    def getLabel(self, prefix=""):
+        return prefix + "temp label"#CONFIG["wizard.label.%s" % self.group].get(self.key, "")
+
+    def getDescription(self, width, prefix=""):
+        if not self.descriptionCache or self.descriptionCacheArg != width:
+            #optDescription = CONFIG["wizard.description.%s" % self.group].get(self.key, "")
+            optDescription = "temp description"
+            self.descriptionCache = splitStr(optDescription, width)
+            self.descriptionCacheArg = width
+
+        return [prefix + line for line in self.descriptionCache]
 
 class ToggleConfigOption(ConfigOption):
-  """
-  Configuration option representing a boolean.
-  """
+    """
+    Configuration option representing a boolean.
+    """
 
-  def __init__(self, key, group, default, trueLabel, falseLabel):
-    ConfigOption.__init__(self, key, group, default)
-    self.trueLabel = trueLabel
-    self.falseLabel = falseLabel
+    def __init__(self, key, group, default, trueLabel, falseLabel):
+        ConfigOption.__init__(self, key, group, default)
+        self.trueLabel = trueLabel
+        self.falseLabel = falseLabel
 
-  def getDisplayValue(self):
-    return self.trueLabel if self.value else self.falseLabel
+    def getDisplayValue(self):
+        return self.trueLabel if self.value else self.falseLabel
 
-  def toggle(self):
-    # This isn't really here to validate the value (after all this is a
-    # boolean, the options are limited!), but rather give a method for functors
-    # to be triggered when selected.
+    def toggle(self):
+        # This isn't really here to validate the value (after all this is a
+        # boolean, the options are limited!), but rather give a method for functors
+        # to be triggered when selected.
 
-    if self.validator: self.validator(self, not self.value)
-    self.value = not self.value
+        if self.validator: self.validator(self, not self.value)
+        self.value = not self.value
