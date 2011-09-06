@@ -15,7 +15,7 @@ CONTROLLER = None
 def test(l):
     v = LogLevels.values()
     for i in xrange(0, 10000):
-        l.log(str(i), v[i%3])
+        l.log(str(i), v[i % 3])
         time.sleep(0.001)
 
 def start(stdscr):

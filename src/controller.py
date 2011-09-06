@@ -276,7 +276,7 @@ class Controller:
         msg = "Paused"
         attr = curses.A_STANDOUT
       else:
-        page, count = self.getPage()+1, self.getPageCount()
+        page, count = self.getPage() + 1, self.getPageCount()
         if count > 1: msg = "page %s / %s - %s" % (page, count, self._toolBarMsg)
         else: msg = self._toolBarMsg
         attr = curses.A_NORMAL

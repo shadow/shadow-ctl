@@ -228,7 +228,7 @@ class LogPanel(Panel, threading.Thread):
         flags.append("ESC : keep current level")
         
         for i in range(len(flags)):
-            popup.addstr((i + 1)*2, 1, flags[i])
+            popup.addstr((i + 1) * 2, 1, flags[i])
         popup.win.refresh()
 
         # get new level

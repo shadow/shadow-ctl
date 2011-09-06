@@ -878,8 +878,8 @@ class ControlPanel(Panel):
     """
     Panel that displays selectable controls.
     """
-    def __init__(self, stdscr, width, height):
-        Panel.__init__(self, stdscr, "Controls", width, height)
+    def __init__(self, stdscr, top, left):
+        Panel.__init__(self, stdscr, "Controls", top, left)
         # holds a list of Options to display in this panel
         self.controls = None
         # display attributes for each option name
@@ -911,7 +911,8 @@ class ControlPanel(Panel):
         drawBox(self, 0, 0, width, height)
 
         # breakup the message and draw it inside the box
-        msgLines = splitStr(self.message, 54)
+        textWidth = width - 4
+        msgLines = splitStr(self.message, textWidth)
         for i in range(len(msgLines)): self.addstr(i + 1, 2, msgLines[i], self.messageAttributes)
 
         # track position for each option on the screen
@@ -928,13 +929,13 @@ class ControlPanel(Panel):
             self.addstr(y + offset, 2, label,
                         self.controlNameAttributes | extraAttributes)
             # set whitespace as non-bold due to curses pixel alignment bug
-            self.addstr(y + offset, 2 + len(label), " " * (54 - len(label)),
+            self.addstr(y + offset, 2 + len(label), " " * (textWidth - len(label)),
                         self.controlDescriptionAttributes | extraAttributes)
             y += 1
 
-            description = splitStr(o[1], 54)#.getDescription(), 54)
+            description = splitStr(o[1], textWidth)#.getDescription(), 54)
             for line in description:
-                self.addstr(y + offset, 2, padStr(line, 54),
+                self.addstr(y + offset, 2, padStr(line, textWidth),
                             self.controlDescriptionAttributes | extraAttributes)
                 offset += 1
 
