@@ -728,7 +728,8 @@ def loggedCall(cmd, workingDirectory, logger):
         logger.debug(line)
         
         # if the logger is paused, we should pause to avoid overloading the buffer
-        if logger.isPaused(): 
+        if logger.isPaused():
+            # TODO do we need os.killpg(pid, signal.SIGCONT) instead? 
             p.send_signal(signal.SIGSTOP)
             while logger.isPaused(): time.sleep(1)
             p.send_signal(signal.SIGCONT)
