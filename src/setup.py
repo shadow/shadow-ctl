@@ -211,13 +211,13 @@ class SetupThread(threading.Thread):
         
         # extra flags for building
         extraIncludePaths = os.path.abspath(os.path.expanduser(config.get("setup", "includepathlist")))
-        extraIncludeFlagList = ["-I" + include for include in extraIncludePaths.split(';')]
+        extraIncludeFlagList = ["-I" + include for include in extraIncludePaths.split(';') if include != ""]
         extraIncludeFlags = " ".join(extraIncludeFlagList)
         logger.debug("using compiler flags \'" + extraIncludeFlags + "\'")
         
         # extra search paths for libs
         extraLibPaths = os.path.abspath(os.path.expanduser(config.get("setup", "libpathlist")))
-        extraLibFlagList = ["-L" + lib for lib in extraLibPaths.split(';')]
+        extraLibFlagList = ["-L" + lib for lib in extraLibPaths.split(';') if lib != ""]
         extraLibFlags = " ".join(extraLibFlagList)
         logger.debug("using linker flags \'" + extraLibFlags + "\'")
         

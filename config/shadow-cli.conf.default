@@ -14,11 +14,11 @@ prefix = ~/.local
 
 ## List of include paths that will be passed to the compiler using '-Ipath'.
 ## Used for building Shadow and dependencies, separated by ';'
-includepathlist = %(prefix)s/include
+includepathlist = %(prefix)s/include;
 
 ## List of library paths that will be passed to the linker using '-Ipath'.
 ## Used for building Shadow and dependencies, separated by ';'
-libpathlist = %(prefix)s/lib
+libpathlist = %(prefix)s/lib;
 
 ## The following are URLs to dependencies and our software. This configuration
 ## has been tested and known to work.
