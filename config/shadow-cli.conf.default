@@ -1,17 +1,30 @@
-# This section is used for options concerning setup.
+## This section is used for options concerning setup.
 [setup]
+
+## Path where downloaded files and build directories are cached. This is
+## important to avoid unnecessarily downloading files multiple times.
 cache = ~/.shadow/.cache/
+
+## Path under which installation will occur (usually to lib/, include/, etc.)
 prefix = ~/.local
-includepathlist = %(prefix)s/include;
-libpathlist = %(prefix)s/lib;
+
+## List of include paths that will be passed to the compiler using '-Ipath'.
+## Used for building Shadow and dependencies, separated by ';'
+includepathlist = %(prefix)s/include
+
+## List of library paths that will be passed to the linker using '-Ipath'.
+## Used for building Shadow and dependencies, separated by ';'
+libpathlist = %(prefix)s/lib
+
+## The following are URLs to dependencies and our software. This configuration
+## has been tested and known to work.
 opensslurl = http://www.openssl.org/source/openssl-1.0.0d.tar.gz
 libeventurl = http://monkey.org/~provos/libevent-2.0.11-stable.tar.gz
 shadowurl = http://shadow.cs.umn.edu/downloads/shadow-release.tar.gz
 scallionurl = http://shadow.cs.umn.edu/downloads/shadow-scallion-release.tar.gz
 shadowresourcesurl = http://shadow.cs.umn.edu/downloads/shadow-resources.tar.gz
 
-# This section is used for interface configurations. This should generally not 
-# be edited by ordinary users.
+## This section is used for interface configurations and should not be modified.
 [cli]
 label.welcome = Welcome
 description.welcome = Welcome to the Shadow Setup Wizard. Please select from the modes below to setup and install Shadow.
