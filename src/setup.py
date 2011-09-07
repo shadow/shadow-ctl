@@ -148,7 +148,19 @@ def wizardAskMode(stdscr, logger):
     return mode
 
 def wizardAskConfigure(stdscr, logger):
-    pass
+    config = getConfig()
+    
+    osub = Option("Suboption", "Leave this option alone", "no")
+    o = Option("Outer Option", "Do something with this option to be cool", "yes", [osub])
+
+    op = OptionPanel(stdscr, 1, 0, "This is the option panel.", [o])
+    op.setVisible(True)
+    
+    while True:
+        op.redraw(True)
+        key = stdscr.getch()
+        selection = op.handleKey(key)
+        if selection is not None: break
 
 def wizardDoUninstall(config, logger):
     # shadow related files that need to be uninstalled:

@@ -1,15 +1,122 @@
 """
-Provides input validators that provide text input with various capabilities.
-These can be chained together with the first matching validator taking
-precidence.
+Options for the cli. Can be used as user configurable options, or just hold
+labels, descriptions, and values. Also provides input validators that 
+provide text input with various capabilities. These can be chained together 
+with the first matching validator taking precidence.
 
-Taken from the arm project, developed by Damian Johnson under GPLv3
+Based on code from the arm project, developed by Damian Johnson under GPLv3
 (www.atagar.com - atagar@torproject.org)
 """
 
 import curses
 
+from config import *
+
+DESC_SIZE = 5 # height of the description field
+MSG_COLOR = "green"
+OPTION_COLOR = "yellow"
+DISABLED_COLOR = "cyan"
 PASS = -1
+
+class Option:
+    """
+    Represents a UI option on screen, and holds its attributes.
+    """
+
+    def __init__(self, label, description, defaultValue="", suboptions=[]):
+        """
+        Configuration option constructor.
+
+        Arguments:
+          label
+          description
+          defaultValue
+          suboptions
+        """
+
+        self.label = label
+        self.description = description
+        self.descriptionCache = None
+        self.descriptionCacheArg = None
+        self.value = defaultValue
+        self.validator = None
+        self.suboptions = suboptions
+        self._isEnabled = True
+    
+    def getSuboptions(self):
+        return self.suboptions  
+    
+    def getLabel(self, prefix=""):
+        return prefix + self.label
+
+    def getDescription(self, width, prefix=""):
+        if not self.descriptionCache or self.descriptionCacheArg != width:
+            self.descriptionCache = splitStr(self.description, width)
+            self.descriptionCacheArg = width
+
+        return [prefix + line for line in self.descriptionCache]
+
+    def getValue(self):
+        return self.value
+    
+    def setValue(self, value):
+        """
+        Attempts to set our value. If a validator has been set then we first check
+        if it's alright, raising a ValueError with the reason if not.
+
+        Arguments:
+          value - value we're attempting to set
+        """
+
+        if self.validator: self.validator(self, value)
+        self.value = value
+
+    def getDisplayValue(self):
+        return self.value
+    
+    def getDisplayAttr(self):
+        myColor = OPTION_COLOR if self.isEnabled() else DISABLED_COLOR
+        return curses.A_BOLD | getColor(myColor)
+
+    def isEnabled(self):
+        return self._isEnabled
+
+    def setEnabled(self, isEnabled):
+        self._isEnabled = isEnabled
+
+    def setValidator(self, validator):
+        """
+        Custom function used to check that a value is valid before setting it.
+        This functor should accept two arguments: this option and the value we're
+        attempting to set. If its invalid then a ValueError with the reason is
+        expected.
+
+        Arguments:
+          validator - functor for checking the validitiy of values we set
+        """
+
+        self.validator = validator
+
+class ToggleOption(Option):
+    """
+    An option representing a boolean.
+    """
+
+    def __init__(self, label, description, trueLabel, falseLabel, defaultValue=True, suboptions=[]):
+        Option.__init__(self, label, description, defaultValue, suboptions)
+        self.trueLabel = trueLabel
+        self.falseLabel = falseLabel
+
+    def getDisplayValue(self):
+        return self.trueLabel if self.value else self.falseLabel
+
+    def toggle(self):
+        # This isn't really here to validate the value (after all this is a
+        # boolean, the options are limited!), but rather give a method for functors
+        # to be triggered when selected.
+
+        if self.validator: self.validator(self, not self.value)
+        self.value = not self.value
 
 class TextInputValidator:
     """

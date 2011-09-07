@@ -949,3 +949,93 @@ class ControlPanel(Panel):
             elif isSelectionKey(key):
                 return self.controls[self.selectedIndex][0]
         return None
+
+class OptionPanel(Panel):
+    """
+    Panel that displays user options.
+    
+    Each option may have list of suboptions. We currently only draw one level
+    of suboptions (meaning the suboptions of suboptions will not be drawn).
+    """
+    def __init__(self, stdscr, top, left, message=None, options=[]):
+        Panel.__init__(self, stdscr, "options", top, left)
+        # holds a list of Options to display in this panel
+        self.outerOptions = options
+        # flat list of all options and recursive suboptions
+        self.allOptions = self._combineOptions(options)
+        # a message displayed before the option list
+        self.message = message
+        # the option that is selected
+        self.selectedIndex = 0 if len(options) > 0 else None
+
+    def _combineOptions(self, options):
+        combined = []
+        for option in options:
+            combined.append(option)
+            sub = self._combineOptions(option.getSuboptions())
+            for s in sub: combined.append(s)
+        return combined
+        
+    def setMessage(self, message):
+        self.message = message
+
+    def addOption(self, option):
+        """
+          Sets the options being displayed by the panel.
+
+          Arguments:
+            options  - list of options
+        """
+        self.outerOptions.append(option)
+        for o in self._combineOptions([option]): self.allOptions.append(o)
+
+    def draw(self, width, height):
+        drawBox(self, 0, 0, width, height)
+
+        # breakup the message and draw it inside the box
+        textWidth = width - 4
+        msgLines = splitStr(self.message, textWidth)
+        for i in range(len(msgLines)): self.addstr(i + 1, 2, msgLines[i], curses.A_BOLD)
+
+        # track position for each option on the screen
+        y = len(msgLines) + 1
+        
+        selectedDescription = None
+
+        for o in self.allOptions:
+            # selected controls stand out from the rest
+            extraAttributes = 0
+            if o is self.allOptions[self.selectedIndex]: 
+                extraAttributes = curses.A_STANDOUT
+                selectedDescription = o.getDescription(width-4)
+
+            # draw the option name and description
+            y += 1
+            label = o.getLabel()
+            self.addstr(y, 2, label, o.getDisplayAttr() | extraAttributes)
+            remainingSpace = textWidth - len(label)
+            
+            value = o.getDisplayValue()
+            self.addstr(y, width-2-len(value), value, o.getDisplayAttr() | extraAttributes)
+            remainingSpace -= len(value)
+            
+            # set whitespace as non-bold due to curses pixel alignment bug
+            self.addstr(y, 2 + len(label), " " * (remainingSpace),
+                        o.getDisplayAttr() | extraAttributes)
+            y += 1
+
+        self.hline(y, 1, width-2)
+        y += 1
+        for line in selectedDescription:
+            self.addstr(y, 2, padStr(line, textWidth))
+            y += 1
+
+    def handleKey(self, key):
+        if self.selectedIndex is not None:
+            if key == curses.KEY_UP:
+                self.selectedIndex = (self.selectedIndex - 1) % len(self.allOptions)
+            elif key == curses.KEY_DOWN:
+                self.selectedIndex = (self.selectedIndex + 1) % len(self.allOptions)
+            elif isSelectionKey(key):
+                pass
+        return None
