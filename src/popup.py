@@ -16,7 +16,7 @@ class PopupManager():
     def __init__(self, controller):
         self.controller = controller
 
-    def prepare(self, height= -1, width= -1, top=0, left=0):
+    def prepare(self, height= -1, width= -1, top=1, left=0):
         """
         Preparation for displaying a popup. This creates a popup with a valid
         subwindow instance. If that's successful then the curses lock is acquired
@@ -51,7 +51,7 @@ class PopupManager():
         self.controller.requestRedraw()
         CURSES_LOCK.release()
 
-    def inputPrompt(self, msg, initialValue=""):
+    def inputPopup(self, msg, initialValue=""):
         """
         Prompts the user to enter a string on the control line (which usually
         displays the page number and basic controls).
@@ -60,7 +60,36 @@ class PopupManager():
           msg          - message to prompt the user for input with
           initialValue - initial value of the field
         """
+        
+        popup, width, height = self.prepare(9, 80)
+        if not popup: return
 
+        userInput = None
+        try:
+            popup.win.box()
+            popup.addstr(0, 0, "Request for Input:", curses.A_STANDOUT)
+            popup.addstr(2, 2, msg, curses.A_BOLD)
+            popup.addstr(7, 2, "Press any key...")
+            popup.win.refresh()
+
+            userInput = popup.getstr(4, 2, initialText=initialValue, maxWidth=width-2)
+            
+            popup.setVisible(False)
+            self.controller.redraw()
+        finally: self.finalize()
+        
+        return userInput
+
+    def inputToolbar(self, msg, initialValue=""):
+        """
+        Prompts the user to enter a string on the control line (which usually
+        displays the page number and basic controls).
+
+        Arguments:
+          msg          - message to prompt the user for input with
+          initialValue - initial value of the field
+        """
+        
         CURSES_LOCK.acquire()
         toolBarPanel = self.controller.getToolBar()
         toolBarPanel.setMessage(msg)

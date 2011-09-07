@@ -5,6 +5,7 @@
 
 import curses
 import threading
+from time import gmtime, strftime
 
 from panel import *
 from enum import *
@@ -12,7 +13,7 @@ from tools import *
 
 LogLevels = Enum("ERROR", "INFO", "DEBUG")
 LogColors = {LogLevels.ERROR : "red",
-             LogLevels.INFO : "blue",
+             LogLevels.INFO : "green",
              LogLevels.DEBUG : "yellow", }
 LogShortcuts = {LogLevels.ERROR : "e",
                 LogLevels.INFO : "i",
@@ -259,8 +260,9 @@ class LogPanel(Panel, threading.Thread):
         """
         Lets user enter a path to take a snapshot, canceling if left blank.
         """
-
-        pathInput = self.popupManager.inputPrompt("Path to save log snapshot: ")
+        id = strftime("%Y%m%d%H%M%S", gmtime())
+        suggestion = os.path.abspath(os.path.expanduser("~/shadow-cli." + id + ".log"))
+        pathInput = self.popupManager.inputPopup("Path to save log snapshot: ", initialValue=suggestion)
 
         if pathInput:
             try:
