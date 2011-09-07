@@ -69,7 +69,7 @@ class PopupManager():
             popup.win.box()
             popup.addstr(0, 0, "Request for Input:", curses.A_STANDOUT)
             popup.addstr(2, 2, msg, curses.A_BOLD)
-            popup.addstr(7, 2, "Press any key...")
+            popup.addstr(7, 2, "Press ESC to cancel...")
             popup.win.refresh()
 
             userInput = popup.getstr(4, 2, initialText=initialValue, maxWidth=width-2)
@@ -150,7 +150,7 @@ class PopupManager():
         properly, this is an arrow, enter, or scroll key then this returns None.
         """
 
-        popup, _, height = self.prepare(9, 80)
+        popup, _, height = self.prepare(10, 80)
         if not popup: return
 
         exitKey = None
@@ -174,7 +174,7 @@ class PopupManager():
                 # u: duplicate log entries (hidden)
                 key, description, selection = helpOptions[i]
                 if key: description = ": " + description
-                row = (i / 2) + 1
+                row = ((i / 2) + 1) * 2
                 col = 2 if i % 2 == 0 else 41
 
                 popup.addstr(row, col, key, curses.A_BOLD)
@@ -188,8 +188,8 @@ class PopupManager():
                     popup.addstr(row, col + 2 + len(selection), ")")
 
             # tells user to press a key if the lower left is unoccupied
-            if len(helpOptions) < 13 and height == 9:
-                popup.addstr(7, 2, "Press any key...")
+            if len(helpOptions) < 13 and height == 10:
+                popup.addstr(8, 2, "Press any key...")
 
             popup.win.refresh()
             curses.cbreak()

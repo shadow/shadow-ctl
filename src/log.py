@@ -223,7 +223,7 @@ class LogPanel(Panel, threading.Thread):
         """
 
         # allow user to enter new types of events to log - unchanged if left blank
-        popup, width, height = self.popupManager.prepare(11, 80)
+        popup, width, height = self.popupManager.prepare(12, 80)
 
         if popup:
             try:
@@ -237,7 +237,9 @@ class LogPanel(Panel, threading.Thread):
                 flags.append("ESC : keep current level")
 
                 for i in range(len(flags)):
-                    popup.addstr((i + 1) * 2, 1, flags[i])
+                    popup.addstr((i + 1) * 2, 2, flags[i])
+                    
+                popup.addstr((len(flags) + 1) * 2, 2, "Press any key...")
                 popup.win.refresh()
 
                 # get new level
@@ -250,10 +252,13 @@ class LogPanel(Panel, threading.Thread):
                     if key == ord(LogShortcuts[k]) or key == ord(LogShortcuts[k].upper()):
                         level = k
                         break
+                    
+                popup.setVisible(False)
+                self.redraw(True)
 
                 if level is not None: self.setLevel(level)
-                elif key == 27: self.popupManager.showMsg("Canceled", 2)
-                else: self.popupManager.showMsg("Invalid choice: %s" % str(curses.keyname(key)), 2)
+                elif key == 27: self.popupManager.showMsg("Cancelled log level selection", 2)
+                else: self.popupManager.showMsg("Invalid log level selection: %s" % str(curses.keyname(key)), 2)
             finally: self.popupManager.finalize()
 
     def showSnapshotPrompt(self):
@@ -267,7 +272,7 @@ class LogPanel(Panel, threading.Thread):
         if pathInput:
             try:
                 self.saveSnapshot(pathInput)
-                self.popupManager.showMsg("Saved: %s" % pathInput, 2)
+                self.popupManager.showMsg("Saved log as: %s" % pathInput, 2)
             except IOError, exc:
                 self.popupManager.showMsg("Unable to save snapshot: %s" % getFileErrorMsg(exc), 2)
 
@@ -298,8 +303,12 @@ class LogPanel(Panel, threading.Thread):
         snapshotFile = open(path, "w")
         self.valsLock.acquire()
         try:
-            for entry in self.msgLog:
+            # we want to save the log top-down instead of bottom-up like its displayed
+            i = len(self.msgLog) - 1
+            while i >= 0:
+                entry = self.msgLog[i]
                 snapshotFile.write(entry.getDisplayMessage(True) + "\n")
+                i -= 1
 
             self.valsLock.release()
         except Exception, exc:
@@ -351,7 +360,7 @@ class LogPanel(Panel, threading.Thread):
 
         # draws the top label
         if self.isTitleVisible():
-            self.addstr(0, 0, self._getTitle(width), curses.A_STANDOUT)
+            self.addstr(0, 0, self._getTitle(width), curses.A_UNDERLINE)
 
         # restricts scroll location to valid bounds
         self.scroll = max(0, min(self.scroll, self.lastContentHeight - height + 1))
@@ -501,7 +510,7 @@ class LogPanel(Panel, threading.Thread):
         # usually the attributes used to make the label are decently static, so
         # provide cached results if they're unchanged
         self.valsLock.acquire()
-        titleLabel = "Log (level = %s)" % str(self.level)
+        titleLabel = "Log (%s level)" % str(self.level)
         self.valsLock.release()
 
         return titleLabel

@@ -1,3 +1,7 @@
+[general]
+## The initial log level (can be changed in the cli). 'debug' or 'info' or 'error'
+loglevel = info
+
 ## This section is used for options concerning setup.
 [setup]
 

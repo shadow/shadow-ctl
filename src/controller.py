@@ -38,7 +38,7 @@ class Controller:
         # add sticky title
         un = os.uname()
         head = LabelPanel(stdscr)
-        head.setMessage("shadow-cli on %s (%s %s)" % (un[1], un[0], un[2]), curses.A_BOLD | curses.A_REVERSE)
+        head.setMessage("shadow-cli on %s (%s %s)" % (un[1], un[0], un[2]), curses.A_BOLD | curses.A_STANDOUT)
         self.addStickyPanel(head)
         head.setVisible(True)
 

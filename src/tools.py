@@ -712,34 +712,6 @@ def getFileErrorMsg(exc):
 
     return excStr
 
-def loggedCall(cmd, workingDirectory, logger):
-    logger.info("Executing command: \'" + cmd + "\'")
-
-    # run the command in a separate process
-    # use shlex.split to avoid breaking up single args that have spaces in them into two args
-    p = subprocess.Popen(shlex.split(cmd), cwd=workingDirectory, 
-                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-
-    # while the command is executing, watch its output and push to the queue
-    while True:
-        # TODO if the command produces no output, can we sleep to avoid spinloop?
-        line = p.stdout.readline()
-        if not line: break
-        logger.debug(line)
-        
-        # if the logger is paused, we should pause to avoid overloading the buffer
-        if logger.isPaused():
-            # TODO do we need os.killpg(pid, signal.SIGCONT) instead? 
-            p.send_signal(signal.SIGSTOP)
-            while logger.isPaused(): time.sleep(1)
-            p.send_signal(signal.SIGCONT)
-
-    # return the finished processes returncode
-    r = p.wait()
-    logger.info("Command: \'" + cmd + "\' returned \'" + str(r) + "\'")
-
-    return r
-
 def download(url, target_path):
     try:
         u = urllib2.urlopen(url)
@@ -749,4 +721,3 @@ def download(url, target_path):
         return 0
     except urllib2.URLError:
         return -1
-    
