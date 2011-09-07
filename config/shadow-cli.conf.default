@@ -2,6 +2,8 @@
 [setup]
 cache = ~/.shadow/.cache/
 prefix = ~/.local
+includepathlist = %(prefix)s/include;
+libpathlist = %(prefix)s/lib;
 opensslurl = http://www.openssl.org/source/openssl-1.0.0d.tar.gz
 libeventurl = http://monkey.org/~provos/libevent-2.0.11-stable.tar.gz
 shadowurl = http://shadow.cs.umn.edu/downloads/shadow-release.tar.gz
@@ -16,9 +18,9 @@ description.welcome = Welcome to the Shadow Setup Wizard. Please select from the
 label.mode.autolast = Auto - Last Configuration
 description.mode.autolast = Performs an automatic setup of Shadow using options and cache from the last setup.
 label.mode.autodefault = Auto - Default Configuration
-description.mode.autodefault = Performs an automatic setup of Shadow by downloading, building, and installing Shadow and any missing dependencies to the user's home directory using default options. A cache is created for future automatic setups.
+description.mode.autodefault = Performs an automatic setup of Shadow by downloading, building, and installing Shadow and any missing dependencies using default options. A cache is created for future automatic setups.
 label.mode.custom = Custom Configuration
-description.mode.custom = Configure options before running Shadow setup. This mode clears any existing cache from previous setups.
+description.mode.custom = Configure options before running Shadow setup. This mode clears existing cache from previous setups.
 label.mode.uninstall = Uninstall
 description.mode.uninstall = Uninstall Shadow and clear cache.
 label.mode.cancel = Exit

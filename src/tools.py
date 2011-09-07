@@ -11,6 +11,8 @@ Taken from the arm project, developed by Damian Johnson under GPLv3
 import os
 import sys
 import curses
+import time
+import signal
 import subprocess, shlex, urllib2, tarfile
 
 from curses.ascii import isprint
@@ -710,12 +712,13 @@ def getFileErrorMsg(exc):
 
     return excStr
 
-def loggedCall(cmd, logger):
+def loggedCall(cmd, workingDirectory, logger):
     logger.info("Executing command: \'" + cmd + "\'")
 
     # run the command in a separate process
     # use shlex.split to avoid breaking up single args that have spaces in them into two args
-    p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p = subprocess.Popen(shlex.split(cmd), cwd=workingDirectory, 
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
     # while the command is executing, watch its output and push to the queue
     while True:
@@ -723,6 +726,12 @@ def loggedCall(cmd, logger):
         line = p.stdout.readline()
         if not line: break
         logger.debug(line)
+        
+        # if the logger is paused, we should pause to avoid overloading the buffer
+        if logger.isPaused(): 
+            p.send_signal(signal.SIGSTOP)
+            while logger.isPaused(): time.sleep(1)
+            p.send_signal(signal.SIGCONT)
 
     # return the finished processes returncode
     r = p.wait()

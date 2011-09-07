@@ -232,7 +232,6 @@ class LogPanel(Panel, threading.Thread):
 
                 flags = []
                 for f in LogLevels.values():
-                    self.debug(f)
                     flags.append(LogShortcuts[f] + " : " + LogDescriptions[f])
                 flags.append("ESC : keep current level")
 
