@@ -111,7 +111,7 @@ def wizardAskMode(stdscr, logger):
     config = getConfig()
 
     cp = ControlPanel(stdscr, 1, 0)
-    cp.setMessage(config.get("cli", "description.welcome"))
+    cp.setMessage(config.get("cli", "description.mode.title"))
     cp.setVisible(True)
 
     choices = []
@@ -150,12 +150,21 @@ def wizardAskMode(stdscr, logger):
 def wizardAskConfigure(stdscr, logger):
     config = getConfig()
     
-    osub = Option("Suboption", "Leave this option alone", "no")
-    o = Option("Outer Option", "Do something with this option to be cool", "yes", [osub])
-
-    op = OptionPanel(stdscr, 1, 0, "This is the option panel.", [o])
+    op = OptionPanel(stdscr, 1, 0, config.get("cli", "description.option.title"))
     op.setVisible(True)
     
+    opensslSubOption = Option(config.get("cli", "label.option.opensslurl"), config.get("cli", "description.option.opensslurl"), config.get("setup", "opensslurl"))
+    libeventSubOption = Option(config.get("cli", "label.option.libeventurl"), config.get("cli", "description.option.libeventurl"), config.get("setup", "libeventurl"))
+    
+    op.addOption(Option(config.get("cli", "label.option.prefix"), config.get("cli", "description.option.prefix"), config.get("setup", "prefix")))
+    op.addOption(Option(config.get("cli", "label.option.cache"), config.get("cli", "description.option.cache"), config.get("setup", "cache")))
+    op.addOption(ToggleOption(config.get("cli", "label.option.doopenssl"), config.get("cli", "description.option.doopenssl"), "yes", "no", config.getboolean("setup", "doopenssl"), [opensslSubOption]))
+    op.addOption(ToggleOption(config.get("cli", "label.option.dolibevent"), config.get("cli", "description.option.dolibevent"), "yes", "no", config.getboolean("setup", "dolibevent"), [libeventSubOption]))
+    op.addOption(Option(config.get("cli", "label.option.shadowresourcesurl"), config.get("cli", "description.option.shadowresourcesurl"), config.get("setup", "shadowresourcesurl")))
+    op.addOption(Option(config.get("cli", "label.option.shadowurl"), config.get("cli", "description.option.shadowurl"), config.get("setup", "shadowurl")))
+    op.addOption(Option(config.get("cli", "label.option.includepaths"), config.get("cli", "description.option.includepaths"), config.get("setup", "includepaths")))
+    op.addOption(Option(config.get("cli", "label.option.librarypaths"), config.get("cli", "description.option.librarypaths"), config.get("setup", "librarypaths")))
+        
     while True:
         op.redraw(True)
         key = stdscr.getch()
@@ -237,8 +246,8 @@ class SetupThread(threading.Thread):
         success = True
         
         if success:
-            # openssl
-            cmdlist = ["./config --prefix=" + prefix + " -fPIC shared", "make", "make install"]
+            # openssl (-DPURIFY is needed to run in valgrind if plugin uses openssl)
+            cmdlist = ["./config --prefix=" + prefix + " -fPIC shared -DPURIFY", "make", "make install"]
             success = self._setupHelper(config, "opensslurl", cmdlist, logger)
         
         if success:

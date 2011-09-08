@@ -42,9 +42,10 @@ class Option:
         self.validator = None
         self.suboptions = suboptions
         self._isEnabled = True
+        self._areSubOptionsEnabled = True
     
     def getSuboptions(self):
-        return self.suboptions  
+        return self.suboptions
     
     def getLabel(self, prefix=""):
         return prefix + self.label
@@ -84,6 +85,9 @@ class Option:
     def setEnabled(self, isEnabled):
         self._isEnabled = isEnabled
 
+    def setSuboptionsEnabled(self, isEnabled):
+        for s in self.suboptions: s.setEnabled(isEnabled)
+    
     def setValidator(self, validator):
         """
         Custom function used to check that a value is valid before setting it.
@@ -106,6 +110,7 @@ class ToggleOption(Option):
         Option.__init__(self, label, description, defaultValue, suboptions)
         self.trueLabel = trueLabel
         self.falseLabel = falseLabel
+        self.setSuboptionsEnabled(defaultValue) 
 
     def getDisplayValue(self):
         return self.trueLabel if self.value else self.falseLabel
@@ -117,6 +122,7 @@ class ToggleOption(Option):
 
         if self.validator: self.validator(self, not self.value)
         self.value = not self.value
+        if self.value: self.setSuboptionsEnabled(self.value)
 
 class TextInputValidator:
     """
