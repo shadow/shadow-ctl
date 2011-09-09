@@ -44,19 +44,12 @@ def start(stdscr):
         setupThread = None
         
         # selectively create and start the setup thread
-        if mode == SetupModes.LAST:
-            # setup without clearing cache
-            setupThread = SetupThread(getConfig(), lp)
-            setupThread.start()
-        elif mode == SetupModes.DEFAULT: 
+        if mode == SetupModes.DEFAULT: 
             # setup using default config
-            _clearCacheHelper(getConfig(), lp)
-            saveConfig(getDefaultConfig())
             setupThread = SetupThread(getDefaultConfig(), lp)
             setupThread.start()
         elif mode == SetupModes.CUSTOM: 
             # use the wizard to configure and store custom options
-            _clearCacheHelper(getConfig(), lp)
             askMode = wizardAskConfigure(stdscr, lp)
             setupThread = SetupThread(getConfig(), lp)
             setupThread.start()
@@ -123,7 +116,6 @@ def wizardAskMode(stdscr, logger):
     cp.setVisible(True)
 
     choices = []
-    if isConfigured(): choices.append((config.get("cli", "label.mode.autolast"), config.get("cli", "description.mode.autolast")))
     choices.append((config.get("cli", "label.mode.autodefault"), config.get("cli", "description.mode.autodefault")))
     choices.append((config.get("cli", "label.mode.custom"), config.get("cli", "description.mode.custom")))
     choices.append((config.get("cli", "label.mode.uninstall"), config.get("cli", "description.mode.uninstall")))
@@ -144,9 +136,7 @@ def wizardAskMode(stdscr, logger):
     logger.debug("wizard selected option \'%s\'" % (selection))
     
     mode = SetupModes.CANCEL
-    if selection == config.get("cli", "label.mode.autolast"):
-        mode = SetupModes.LAST
-    elif selection == config.get("cli", "label.mode.autodefault"):
+    if selection == config.get("cli", "label.mode.autodefault"):
         mode = SetupModes.DEFAULT
     elif selection == config.get("cli", "label.mode.custom"):
         mode = SetupModes.CUSTOM
@@ -164,6 +154,10 @@ def wizardAskConfigure(stdscr, logger):
     
     opensslSubOption = Option(config.get("cli", "label.option.opensslurl"), config.get("cli", "description.option.opensslurl"), config.get("setup", "opensslurl"), customAttribute=("setup", "opensslurl"))
     libeventSubOption = Option(config.get("cli", "label.option.libeventurl"), config.get("cli", "description.option.libeventurl"), config.get("setup", "libeventurl"), customAttribute=("setup", "libeventurl"))
+    scallionSubOption = Option(config.get("cli", "label.option.scallionurl"), config.get("cli", "description.option.scallionurl"), config.get("setup", "scallionurl"), customAttribute=("setup", "scallionurl"))
+    pygeoipSubOption = Option(config.get("cli", "label.option.pygeoipurl"), config.get("cli", "description.option.pygeoipurl"), config.get("setup", "pygeoipurl"), customAttribute=("setup", "pygeoipurl"))
+    maxmindSubOption = Option(config.get("cli", "label.option.maxmindurl"), config.get("cli", "description.option.maxmindurl"), config.get("setup", "maxmindurl"), customAttribute=("setup", "maxmindurl"))
+    torurlSubOption = Option(config.get("cli", "label.option.torurl"), config.get("cli", "description.option.torurl"), config.get("setup", "torurl"), customAttribute=("setup", "torurl"))
     
     op.addOption(Option(config.get("cli", "label.option.prefix"), config.get("cli", "description.option.prefix"), config.get("setup", "prefix"), customAttribute=("setup", "prefix")))
     op.addOption(Option(config.get("cli", "label.option.cache"), config.get("cli", "description.option.cache"), config.get("setup", "cache"), customAttribute=("setup", "cache")))
@@ -171,6 +165,8 @@ def wizardAskConfigure(stdscr, logger):
     op.addOption(ToggleOption(config.get("cli", "label.option.dolibevent"), config.get("cli", "description.option.dolibevent"), "yes", "no", config.getboolean("setup", "dolibevent"), [libeventSubOption], customAttribute=("setup", "dolibevent")))
     op.addOption(Option(config.get("cli", "label.option.shadowresourcesurl"), config.get("cli", "description.option.shadowresourcesurl"), config.get("setup", "shadowresourcesurl"), customAttribute=("setup", "shadowresourcesurl")))
     op.addOption(Option(config.get("cli", "label.option.shadowurl"), config.get("cli", "description.option.shadowurl"), config.get("setup", "shadowurl"), customAttribute=("setup", "shadowurl")))
+    op.addOption(ToggleOption(config.get("cli", "label.option.shadowdebug"), config.get("cli", "description.option.shadowdebug"), "yes", "no", config.getboolean("setup", "shadowdebug"), [], customAttribute=("setup", "shadowdebug")))
+    op.addOption(ToggleOption(config.get("cli", "label.option.doscallion"), config.get("cli", "description.option.doscallion"), "yes", "no", config.getboolean("setup", "doscallion"), [scallionSubOption, pygeoipSubOption, maxmindSubOption, torurlSubOption], customAttribute=("setup", "doscallion")))
     op.addOption(Option(config.get("cli", "label.option.includepaths"), config.get("cli", "description.option.includepaths"), config.get("setup", "includepaths"), customAttribute=("setup", "includepaths")))
     op.addOption(Option(config.get("cli", "label.option.librarypaths"), config.get("cli", "description.option.librarypaths"), config.get("setup", "librarypaths"), customAttribute=("setup", "librarypaths")))
     
@@ -225,12 +221,15 @@ def wizardDoUninstall(config, logger):
 
     logger.info("uninstall complete!")
 
-def _clearCacheHelper(config, logger, clearBuildCache=True, clearDownloadCache=False):
+def _clearCacheHelper(config, logger, clearShadowCache=True, clearBuildCache=False, clearDownloadCache=False):
     cachedir = os.path.expanduser(config.get("setup", "cache"))
     buildcachedir = os.path.abspath(cachedir + "/build")
     downloadcachedir = os.path.abspath(cachedir + "/download")
     
-    for (clear, d) in [(clearBuildCache, buildcachedir), (clearDownloadCache, downloadcachedir)]:
+    shadowcachedir = os.path.abspath(buildcachedir + "/shadow-release")
+    scallioncachedir = os.path.abspath(buildcachedir + "/shadow-scallion-release")
+    
+    for (clear, d) in [(clearShadowCache, shadowcachedir), (clearShadowCache, scallioncachedir), (clearBuildCache, buildcachedir), (clearDownloadCache, downloadcachedir)]:
         if clear and os.path.exists(d): 
             shutil.rmtree(d)
             logger.debug("removed directory: " + d)
@@ -288,6 +287,20 @@ class SetupThread(threading.Thread):
             # shadow
             cmdList = ["cmake -DCMAKE_BUILD_PREFIX=. -DCMAKE_INSTALL_PREFIX=" + prefix + " -DCMAKE_EXTRA_INCLUDES=" + extraIncludePaths + " -DCMAKE_EXTRA_LIBRARIES=" + extraLibPaths, "make", "make install"]
             success = self._setupHelper(config, "shadowurl", cmdList, logger)
+            
+        # TODO fix scallion support
+        if success and config.getboolean("setup", "doscallion"):
+            if success and config.getboolean("setup", "domaxmind"):
+                cmdList = [] # TODO
+                success = self._setupHelper(config, "maxmindurl", cmdList, logger)
+                
+            if success and config.getboolean("setup", "dopygeoip"):
+                cmdList = [] # TODO
+                success = self._setupHelper(config, "pygeoipurl", cmdList, logger)
+            
+            if success:    
+                cmdList = [] # TODO
+                success = self._setupHelper(config, "scallionurl", cmdList, logger)
         
         if success:
             logger.info("setup succeeded! please check \'" + prefix + "/bin\' for binaries.")

@@ -27,8 +27,15 @@ opensslurl = http://www.openssl.org/source/openssl-1.0.0d.tar.gz
 dolibevent = true
 libeventurl = http://monkey.org/~provos/libevent-2.0.11-stable.tar.gz
 shadowurl = http://shadow.cs.umn.edu/downloads/shadow-release.tar.gz
-scallionurl = http://shadow.cs.umn.edu/downloads/shadow-scallion-release.tar.gz
+shadowdebug = false
 shadowresourcesurl = http://shadow.cs.umn.edu/downloads/shadow-resources.tar.gz
+doscallion = false
+scallionurl = http://shadow.cs.umn.edu/downloads/shadow-scallion-release.tar.gz
+dopygeoip = true
+pygeoipurl = http://pygeoip.googlecode.com/files/pygeoip-0.2.1.tar.gz
+domaxmind = true
+maxmindurl = http://geolite.maxmind.com/download/geoip/database/GeoLiteCity.dat.gz
+torurl = https://archive.torproject.org/tor-package-archive/tor-0.2.2.15-alpha.tar.gz
 
 ## This section is used for interface configurations and should not be modified.
 [cli]
@@ -36,17 +43,14 @@ shadowresourcesurl = http://shadow.cs.umn.edu/downloads/shadow-resources.tar.gz
 label.mode.title = Welcome
 description.mode.title = Welcome to the Shadow Setup Wizard. Please select a setup mode:
 
-label.mode.autolast = Auto - Last Configuration
-description.mode.autolast = Automatically setup Shadow using configs and cache from the last setup.
-
-label.mode.autodefault = Auto - Default Configuration
-description.mode.autodefault = Automatically setup Shadow by downloading, building, and installing Shadow and any missing dependencies using default configs. Existing custom configs are replaced with defaults. Existing cache is deleted and a new cache is created for future automatic setups.
+label.mode.autodefault = Default Configuration
+description.mode.autodefault = Automatically setup Shadow by downloading, building, and installing Shadow and any missing dependencies using default options.
 
 label.mode.custom = Custom Configuration
-description.mode.custom = Configure options before running Shadow setup. Reads and interactively modifies existing configs. Existing cache is deleted and a new cache is created for future automatic setups.
+description.mode.custom = Interactively configure options before running Shadow setup.
 
 label.mode.uninstall = Uninstall
-description.mode.uninstall = Uninstall all traces of Shadow, remove existing configs, and clear cache.
+description.mode.uninstall = Uninstall Shadow, clearing existing configurations.
 
 label.mode.cancel = Exit
 description.mode.cancel = Cancel setup and exit.
@@ -78,6 +82,27 @@ description.option.shadowresourcesurl = The URL of the required shadow-resources
 
 label.option.shadowurl = shadow URL
 description.option.shadowurl = The URL of the Shadow package that we will download, configure, and install.
+
+label.option.shadowdebug = debugging symbols
+description.option.shadowdebug = Should we compile Shadow with debugging symbols?
+
+label.option.doscallion = plug in scallion
+description.option.doscallion = Scallion is the Shadow plug-in of Tor. Should we download and setup a compatible version of Scallion for use in Shadow?
+
+label.option.scallionurl = scallion URL
+description.option.scallionurl = The URL of the Shadow plug-in Scallion that we will download, configure, and install.
+
+label.option.pygeoipurl = pygeoip URL
+description.option.pygeoipurl = The URL of the pygeoip Python module. This is required to parse the Tor consensus and generate Tor topologies that accurately reflect Tor in Shadow.
+
+label.option.maxmindurl = maxmind URL
+description.option.maxmindurl = The URL of the maxmind GeoIP database. This is required when generating Tor topologies that accurately reflect Tor in Shadow.
+
+label.option.torversion = tor version
+description.option.torversion = The official version of the Tor package you'd like to run in Shadow. This is used to determine the URL of the Tor package. If you have a custom URL, you can ignore this option.
+
+label.option.torurl = tor URL
+description.option.torurl = The URL of the Tor package you'd like to run in Shadow. This is required to build Scallion. You may change the version numbers in the URL to change the version of Tor that is compiled into Scallion. 
 
 label.option.includepaths = include paths
 description.option.includepaths = A semi-colon separated list of paths to header files that will be included when compiling (-Ipath).
