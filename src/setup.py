@@ -16,7 +16,7 @@ SetupModes = Enum("LAST", "DEFAULT", "CUSTOM", "UNINSTALL", "CANCEL",)
 CONTROLLER = None
 
 def start(stdscr):
-    global CONTROLLER
+    global CONTROLLER, CURSES_LOCK
 
     # main controller that handles all the panels, popups, etc
     CONTROLLER = Controller(stdscr, "p: pause, h: help, q: quit")
@@ -47,12 +47,10 @@ def start(stdscr):
         if mode == SetupModes.DEFAULT: 
             # setup using default config
             setupThread = SetupThread(getDefaultConfig(), lp)
-            setupThread.start()
         elif mode == SetupModes.CUSTOM: 
             # use the wizard to configure and store custom options
             askMode = wizardAskConfigure(stdscr, lp)
             setupThread = SetupThread(getConfig(), lp)
-            setupThread.start()
         elif mode == SetupModes.UNINSTALL: 
             wizardDoUninstall(getConfig(), lp)
         else:
@@ -63,12 +61,16 @@ def start(stdscr):
     lp.setVisible(True)
     # need to force a redraw to completely clear wizard
     CONTROLLER.redraw(True)
+    
+    if setupThread is not None: setupThread.start()
 
     helpkey = None
     while not CONTROLLER.isDone():
 
         CONTROLLER.redraw(False)
+        CURSES_LOCK.acquire()
         stdscr.refresh()
+        CURSES_LOCK.release()
 
         key, helpkey = helpkey, None
         if key is None:

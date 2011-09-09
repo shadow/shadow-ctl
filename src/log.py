@@ -384,9 +384,6 @@ class LogPanel(Panel, threading.Thread):
         contentHeightDelta = abs(self.lastContentHeight - newContentHeight)
         forceRedraw, forceRedrawReason = True, ""
 
-        # done modifying list
-        self.valsLock.release()
-
         if contentHeightDelta >= CONTENT_HEIGHT_REDRAW_THRESHOLD:
             forceRedrawReason = "estimate was off by %i" % contentHeightDelta
         elif newContentHeight > height and self.scroll + height - 1 > newContentHeight:
@@ -400,8 +397,11 @@ class LogPanel(Panel, threading.Thread):
         self.lastContentHeight = newContentHeight
         if forceRedraw:
             forceRedrawReason = "redrawing the log panel with the corrected content height (%s)" % forceRedrawReason
-            self.debug("forced redraw: " + forceRedrawReason)
+            #self.debug("forced redraw: " + forceRedrawReason)
             self.redraw(True)
+
+        # done modifying list
+        self.valsLock.release()
 
     def redraw(self, forceRedraw=False, block=False):
         # determines if the content needs to be redrawn or not
