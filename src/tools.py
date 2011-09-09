@@ -282,7 +282,7 @@ def isScrollKey(key):
 
     return key in SCROLL_KEYS
 
-def getScrollPosition(key, position, pageHeight, contentHeight, isCursor=False, doLoop=True):
+def getScrollPosition(key, position, pageHeight, contentHeight, isCursor=False, doLoop=False):
     """
     Parses navigation keys, providing the new scroll possition the panel should
     use. Position is always between zero and (contentHeight - pageHeight). This
