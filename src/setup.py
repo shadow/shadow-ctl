@@ -286,7 +286,7 @@ class SetupThread(threading.Thread):
         
         if success:
             # shadow
-            cmdList = ["cmake -DCMAKE_BUILD_PREFIX=./build -DCMAKE_INSTALL_PREFIX=" + prefix + " -DCMAKE_EXTRA_INCLUDES=" + extraIncludePaths + " -DCMAKE_EXTRA_LIBRARIES=" + extraLibPaths, "make", "make install"]
+            cmdList = ["cmake -DCMAKE_BUILD_PREFIX=. -DCMAKE_INSTALL_PREFIX=" + prefix + " -DCMAKE_EXTRA_INCLUDES=" + extraIncludePaths + " -DCMAKE_EXTRA_LIBRARIES=" + extraLibPaths, "make", "make install"]
             success = self._setupHelper(config, "shadowurl", cmdList, logger)
         
         if success:

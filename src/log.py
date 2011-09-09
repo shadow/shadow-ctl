@@ -321,9 +321,6 @@ class LogPanel(Panel, threading.Thread):
         self.valsLock.acquire()
         self._lastLoggedEvents, self._lastUpdate = list(currentLog), time.time()
 
-        # we'll be editing the screen
-        CURSES_LOCK.acquire()
-
         # draws the top label
         if self.isTitleVisible():
             self.addstr(0, 0, self._getTitle(width), curses.A_UNDERLINE | curses.A_BOLD)
@@ -387,8 +384,7 @@ class LogPanel(Panel, threading.Thread):
         contentHeightDelta = abs(self.lastContentHeight - newContentHeight)
         forceRedraw, forceRedrawReason = True, ""
 
-        # done with locks
-        CURSES_LOCK.release()
+        # done modifying list
         self.valsLock.release()
 
         if contentHeightDelta >= CONTENT_HEIGHT_REDRAW_THRESHOLD:
