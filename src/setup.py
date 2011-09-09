@@ -51,6 +51,7 @@ def start(stdscr):
         elif mode == SetupModes.DEFAULT: 
             # setup using default config
             _clearCacheHelper(getConfig(), lp)
+            saveConfig(getDefaultConfig())
             setupThread = SetupThread(getDefaultConfig(), lp)
             setupThread.start()
         elif mode == SetupModes.CUSTOM: 
@@ -265,12 +266,12 @@ class SetupThread(threading.Thread):
         # lets be optimistic ;)
         success = True
         
-        if success:
+        if success and config.getboolean("setup", "doopenssl"):
             # openssl (-DPURIFY is needed to run in valgrind if plugin uses openssl)
             cmdlist = ["./config --prefix=" + prefix + " -fPIC shared -DPURIFY", "make", "make install"]
             success = self._setupHelper(config, "opensslurl", cmdlist, logger)
         
-        if success:
+        if success and config.getboolean("setup", "dolibevent"):
             # libevent
             cmdlist = ["./configure --prefix=" + prefix + " CFLAGS=\"-fPIC " + extraIncludeFlags + "\" LDFLAGS=\"" + extraLibFlags + "\"", "make", "make install"]
             success = self._setupHelper(config, "libeventurl", cmdlist, logger)

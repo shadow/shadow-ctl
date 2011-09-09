@@ -34,19 +34,19 @@ shadowresourcesurl = http://shadow.cs.umn.edu/downloads/shadow-resources.tar.gz
 [cli]
 ## Wizard mode selection
 label.mode.title = Welcome
-description.mode.title = Welcome to the Shadow Setup Wizard. Please select from the modes below to setup and install Shadow.
+description.mode.title = Welcome to the Shadow Setup Wizard. Please select a setup mode:
 
 label.mode.autolast = Auto - Last Configuration
-description.mode.autolast = Performs an automatic setup of Shadow using options and cache from the last setup.
+description.mode.autolast = Automatically setup Shadow using configs and cache from the last setup.
 
 label.mode.autodefault = Auto - Default Configuration
-description.mode.autodefault = Performs an automatic setup of Shadow by downloading, building, and installing Shadow and any missing dependencies using default options. A cache is created for future automatic setups.
+description.mode.autodefault = Automatically setup Shadow by downloading, building, and installing Shadow and any missing dependencies using default configs. Existing custom configs are replaced with defaults. Existing cache is deleted and a new cache is created for future automatic setups.
 
 label.mode.custom = Custom Configuration
-description.mode.custom = Configure options before running Shadow setup. This mode clears existing cache from previous setups.
+description.mode.custom = Configure options before running Shadow setup. Reads and interactively modifies existing configs. Existing cache is deleted and a new cache is created for future automatic setups.
 
 label.mode.uninstall = Uninstall
-description.mode.uninstall = Uninstall Shadow and clear cache.
+description.mode.uninstall = Uninstall all traces of Shadow, remove existing configs, and clear cache.
 
 label.mode.cancel = Exit
 description.mode.cancel = Cancel setup and exit.
@@ -62,7 +62,7 @@ label.option.cache = cache path
 description.option.cache = Path where cached files are stored, including files that are downloaded during the setup process and build files. Cache is important to ensure that we do not unnecessarily download files accross multiple setups.
 
 label.option.doopenssl = setup openssl
-description.option.doopenssl = Should we download, configure, and locally install a version of OpenSSL that is known to work in Shadow? OpenSSL is required so that Shadow can run plug-ins that use OpenSSL's cryptographic libraries. If not, please make sure you append include and library paths to your installation below.
+description.option.doopenssl = Should we download, configure, and locally install a version of OpenSSL that is known to work in Shadow? OpenSSL is required so that Shadow can run plug-ins that use OpenSSL's cryptographic libraries. If not, please make sure you append include and library paths to your configuration.
 
 label.option.opensslurl = openssl URL
 description.option.opensslurl = The URL of the OpenSSL package that we will download, configure, and install.
