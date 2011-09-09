@@ -792,10 +792,16 @@ class PopupPanel(Panel):
         self.defaultResponse = response
 
     def getUserResponse(self):
+        userInput = None
         if self.defaultResponse is not None:
-            return self.getstr(self.topUserResponse, self.leftUserResponse, self.defaultResponse,
-                           format=curses.A_STANDOUT, maxWidth=self.userResponseMaxWidth)
-        else: return None
+            CURSES_LOCK.acquire()
+            try:
+                userInput = self.getstr(self.topUserResponse, self.leftUserResponse, self.defaultResponse,
+                               format=curses.A_STANDOUT, maxWidth=self.userResponseMaxWidth)
+            finally:
+                CURSES_LOCK.release()
+
+        return userInput
 
     def draw(self, width, height):
         drawBox(self, 0, 0, width - 2, height - 2)
@@ -944,12 +950,13 @@ class ControlPanel(Panel):
     def handleKey(self, key):
         # if the iopanel is currently active, pass key there
         if self.selectedIndex is not None:
-            if key == curses.KEY_UP:
-                self.selectedIndex = (self.selectedIndex - 1) % len(self.controls)
-            elif key == curses.KEY_DOWN:
-                self.selectedIndex = (self.selectedIndex + 1) % len(self.controls)
+            if isScrollKey(key):
+                pageHeight = self.getPreferredSize()[0] - 1
+                self.selectedIndex = getScrollPosition(key, self.selectedIndex, 
+                                pageHeight, len(self.controls), isCursor=True)
             elif isSelectionKey(key):
                 return self.controls[self.selectedIndex][0]
+            
         return None
 
 class OptionPanel(Panel):

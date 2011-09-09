@@ -10,6 +10,7 @@ from popup import *
 from log import *
 from config import *
 from enum import *
+from input import *
 
 SetupModes = Enum("LAST", "DEFAULT", "CUSTOM", "UNINSTALL", "CANCEL",)
 CONTROLLER = None
@@ -37,7 +38,6 @@ def start(stdscr):
     while askMode:
         # launch the setup wizard to get setup mode
         mode = wizardAskMode(stdscr, lp)
-        helpkey = None
         askMode = False
         
         # the thread that will do the setup work while we run the display
@@ -62,13 +62,16 @@ def start(stdscr):
             setupThread.start()
         elif mode == SetupModes.UNINSTALL: 
             wizardDoUninstall(getConfig(), lp)
-        else: helpkey = ord('q')
+        else:
+            CONTROLLER.quit()
+            return
     
     # now we want the log to be shown
     lp.setVisible(True)
     # need to force a redraw to completely clear wizard
     CONTROLLER.redraw(True)
 
+    helpkey = None
     while not CONTROLLER.isDone():
 
         CONTROLLER.redraw(False)

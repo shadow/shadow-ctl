@@ -51,7 +51,6 @@ def isConfigured():
     return os.path.exists(CONFIG_PATH)
 
 def saveConfig(conf):
-    if conf is DEFAULT_CONFIG: return
     d = os.path.dirname(CONFIG_PATH)
     if not os.path.exists(d): os.makedirs(d)
     with open(CONFIG_PATH, 'w') as f: conf.write(f)

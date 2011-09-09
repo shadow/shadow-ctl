@@ -66,44 +66,6 @@ class LogEntry():
 
         return self._displayMessage
 
-#class LogManager(threading.Thread):
-#    def __init__(self):
-#        threading.Thread.__init__(self)
-#        self.setDaemon(True)
-#
-#        Panel.__init__(self, stdscr, "log", 0)
-#        self.visible = False
-#
-#    def setVisible(self, visible):
-#        self.visible = True
-#
-#    def log(self, level, message):
-#        return self.screen
-#
-#    def clear(self):
-#        pass
-#
-#    def save(self):
-#        query = "Please enter the path to save the log file, or press ESC to cancel:"
-#        default = os.path.abspath(os.getenv("HOME") + "/.shadow/cli-" + str(int(time.time())) + ".log")
-#
-#        # use a popup to ask about the path of the file to save
-#        p = PopupPanel(self.parent, 2, 2)
-#        p.setVisible(True)
-#        p.setQuery(query)
-#        p.setDefaultResponse(default)
-#        p.redraw(True)
-#        path = p.getUserResponse()
-#
-#        if path is not None:
-#            path = os.path.abspath(path)
-#            d = os.path.dirname(path)
-#            if not os.path.exists(d): os.makedirs(d)
-#            with open(path, 'a') as f:
-#                for line in self.get(): f.write(line)
-#
-#            self.add("Log saved to " + path)
-
 class LogPanel(Panel, threading.Thread):
     """
     Listens for and displays logs.
@@ -355,77 +317,68 @@ class LogPanel(Panel, threading.Thread):
 
         currentLog = self.getAttr("msgLog")
 
+        # we will be messing with the backlog
         self.valsLock.acquire()
         self._lastLoggedEvents, self._lastUpdate = list(currentLog), time.time()
 
+        # we'll be editing the screen
+        CURSES_LOCK.acquire()
+
         # draws the top label
         if self.isTitleVisible():
-            self.addstr(0, 0, self._getTitle(width), curses.A_UNDERLINE)
+            self.addstr(0, 0, self._getTitle(width), curses.A_UNDERLINE | curses.A_BOLD)
 
         # restricts scroll location to valid bounds
         self.scroll = max(0, min(self.scroll, self.lastContentHeight - height + 1))
 
         # draws left-hand scroll bar if content's longer than the height
-        msgIndent, dividerIndent = 1, 0 # offsets for scroll bar
+        msgIndent = 1 # offsets for scroll bar
         isScrollBarVisible = self.lastContentHeight > height - 1
         if isScrollBarVisible:
-            msgIndent, dividerIndent = 3, 2
+            msgIndent = 3
             self.addScrollBar(self.scroll, self.scroll + height - 1, self.lastContentHeight, 1)
 
         # draws log entries
         lineCount = 1 - self.scroll
-        seenFirstDateDivider = False
-        dividerAttr, duplicateAttr = curses.A_BOLD | getColor("yellow"), curses.A_BOLD | getColor("green")
 
-        eventLog = list(currentLog)
-        deduplicatedLog = [(entry, 0) for entry in eventLog]
+        for entry in currentLog:
+            # entry contents to be displayed, tuples of the form:
+            # (msg, formatting, includeLinebreak)
+            displayQueue = []
 
-        while deduplicatedLog:
-            entry, duplicateCount = deduplicatedLog.pop(0)
+            msgComp = entry.getDisplayMessage().split("\n")
+            for i in range(len(msgComp)):
+                font = curses.A_BOLD if entry.level is LogLevels.ERROR else curses.A_NORMAL # emphasizes ERR messages
+                displayQueue.append((msgComp[i].strip(), font | getColor(entry.color), i != len(msgComp) - 1))
 
-            if True:
-                # entry contents to be displayed, tuples of the form:
-                # (msg, formatting, includeLinebreak)
-                displayQueue = []
+            cursorLoc, lineOffset = msgIndent, 0
+            maxEntriesPerLine = 2
+            while displayQueue:
+                msg, format, includeBreak = displayQueue.pop(0)
+                drawLine = lineCount + lineOffset
+                if lineOffset == maxEntriesPerLine: break
 
-                msgComp = entry.getDisplayMessage().split("\n")
-                for i in range(len(msgComp)):
-                    font = curses.A_BOLD if "ERR" in entry.level else curses.A_NORMAL # emphasizes ERR messages
-                    displayQueue.append((msgComp[i].strip(), font | getColor(entry.color), i != len(msgComp) - 1))
+                maxMsgSize = width - cursorLoc - 1
+                if len(msg) > maxMsgSize:
+                # message is too long - break it up
+                    if lineOffset == maxEntriesPerLine - 1:
+                        msg = cropStr(msg, maxMsgSize)
+                    else:
+                        msg, remainder = cropStr(msg, maxMsgSize, 4, 4, Ending.HYPHEN, True)
+                        displayQueue.insert(0, (remainder.strip(), format, includeBreak))
 
-                if duplicateCount:
-                    pluralLabel = "s" if duplicateCount > 1 else ""
-                    duplicateMsg = DUPLICATE_MSG % (duplicateCount, pluralLabel)
-                    displayQueue.append((duplicateMsg, duplicateAttr, False))
+                    includeBreak = True
 
-                cursorLoc, lineOffset = msgIndent, 0
-                maxEntriesPerLine = 2
-                while displayQueue:
-                    msg, format, includeBreak = displayQueue.pop(0)
-                    drawLine = lineCount + lineOffset
-                    if lineOffset == maxEntriesPerLine: break
+                if drawLine < height and drawLine >= 1:
+                    self.addstr(drawLine, cursorLoc, msg, format)
 
-                    maxMsgSize = width - cursorLoc - 1
-                    if len(msg) > maxMsgSize:
-                    # message is too long - break it up
-                        if lineOffset == maxEntriesPerLine - 1:
-                            msg = cropStr(msg, maxMsgSize)
-                        else:
-                            msg, remainder = cropStr(msg, maxMsgSize, 4, 4, Ending.HYPHEN, True)
-                            displayQueue.insert(0, (remainder.strip(), format, includeBreak))
+                cursorLoc += len(msg)
 
-                        includeBreak = True
+                if includeBreak or not displayQueue:
+                    lineOffset += 1
+                    cursorLoc = msgIndent + ENTRY_INDENT
 
-                    if drawLine < height and drawLine >= 1:
-                        self.addstr(drawLine, cursorLoc, msg, format)
-
-                    cursorLoc += len(msg)
-
-                    if includeBreak or not displayQueue:
-                        lineOffset += 1
-                        cursorLoc = msgIndent + ENTRY_INDENT
-
-                lineCount += lineOffset
+            lineCount += lineOffset
 
         # redraw the display if...
         # - lastContentHeight was off by too much
@@ -433,6 +386,10 @@ class LogPanel(Panel, threading.Thread):
         newContentHeight = lineCount + self.scroll - 1
         contentHeightDelta = abs(self.lastContentHeight - newContentHeight)
         forceRedraw, forceRedrawReason = True, ""
+
+        # done with locks
+        CURSES_LOCK.release()
+        self.valsLock.release()
 
         if contentHeightDelta >= CONTENT_HEIGHT_REDRAW_THRESHOLD:
             forceRedrawReason = "estimate was off by %i" % contentHeightDelta
@@ -447,10 +404,8 @@ class LogPanel(Panel, threading.Thread):
         self.lastContentHeight = newContentHeight
         if forceRedraw:
             forceRedrawReason = "redrawing the log panel with the corrected content height (%s)" % forceRedrawReason
-            #log.debug(self._config["log.logPanel.forceDoubleRedraw"], forceRedrawReason)
+            self.debug("forced redraw: " + forceRedrawReason)
             self.redraw(True)
-
-        self.valsLock.release()
 
     def redraw(self, forceRedraw=False, block=False):
         # determines if the content needs to be redrawn or not
