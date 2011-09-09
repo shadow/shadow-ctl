@@ -282,7 +282,7 @@ def isScrollKey(key):
 
     return key in SCROLL_KEYS
 
-def getScrollPosition(key, position, pageHeight, contentHeight, isCursor=False):
+def getScrollPosition(key, position, pageHeight, contentHeight, isCursor=False, doLoop=True):
     """
     Parses navigation keys, providing the new scroll possition the panel should
     use. Position is always between zero and (contentHeight - pageHeight). This
@@ -313,7 +313,13 @@ def getScrollPosition(key, position, pageHeight, contentHeight, isCursor=False):
 
         # returns the shift, restricted to valid bounds
         maxLoc = contentHeight - 1 if isCursor else contentHeight - pageHeight
-        return max(0, min(position + shift, maxLoc))
+        nextLoc = position + shift
+        
+        if doLoop:
+            if nextLoc > maxLoc: return 0
+            elif nextLoc < 0: return maxLoc
+            else: return nextLoc
+        else: return max(0, min(nextLoc, maxLoc))
     else: return position
 
 def getSizeLabel(bytes, decimal=0, isLong=False, isBytes=True):

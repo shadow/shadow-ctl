@@ -953,7 +953,7 @@ class ControlPanel(Panel):
             if isScrollKey(key):
                 pageHeight = self.getPreferredSize()[0] - 1
                 self.selectedIndex = getScrollPosition(key, self.selectedIndex, 
-                                pageHeight, len(self.controls), isCursor=True)
+                                pageHeight, len(self.controls), isCursor=True, doLoop=True)
             elif isSelectionKey(key):
                 return self.controls[self.selectedIndex][0]
             
