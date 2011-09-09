@@ -23,7 +23,7 @@ class Option:
     Represents a UI option on screen, and holds its attributes.
     """
 
-    def __init__(self, label, description, defaultValue="", suboptions=[]):
+    def __init__(self, label, description, defaultValue="", suboptions=[], customAttribute=None):
         """
         Configuration option constructor.
 
@@ -43,9 +43,13 @@ class Option:
         self.suboptions = suboptions
         self._isEnabled = True
         self._areSubOptionsEnabled = True
+        self._customAttribute = customAttribute
     
     def getSuboptions(self):
         return self.suboptions
+    
+    def getCustomAttribute(self):
+        return self._customAttribute
     
     def getLabel(self, prefix=""):
         return prefix + self.label
@@ -77,7 +81,7 @@ class Option:
     
     def getDisplayAttr(self):
         myColor = OPTION_COLOR if self.isEnabled() else DISABLED_COLOR
-        return curses.A_BOLD | getColor(myColor)
+        return getColor(myColor)
 
     def isEnabled(self):
         return self._isEnabled
@@ -106,8 +110,8 @@ class ToggleOption(Option):
     An option representing a boolean.
     """
 
-    def __init__(self, label, description, trueLabel, falseLabel, defaultValue=True, suboptions=[]):
-        Option.__init__(self, label, description, defaultValue, suboptions)
+    def __init__(self, label, description, trueLabel, falseLabel, defaultValue=True, suboptions=[], customAttribute=None):
+        Option.__init__(self, label, description, defaultValue, suboptions, customAttribute=customAttribute)
         self.trueLabel = trueLabel
         self.falseLabel = falseLabel
         self.setSuboptionsEnabled(defaultValue) 
@@ -122,7 +126,7 @@ class ToggleOption(Option):
 
         if self.validator: self.validator(self, not self.value)
         self.value = not self.value
-        if self.value: self.setSuboptionsEnabled(self.value)
+        self.setSuboptionsEnabled(self.value)
 
 class TextInputValidator:
     """

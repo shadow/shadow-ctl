@@ -32,6 +32,8 @@ for colorLabel in COLOR_LIST: FORMAT_TAGS["<%s>" % colorLabel] = (getColor, colo
 # prevents curses redraws if set
 HALT_ACTIVITY = False
 
+OptionResult = Enum("BACK", "NEXT")
+
 class Panel():
     """
     Wrapper for curses subwindows. This hides most of the ugliness in common
@@ -968,6 +970,8 @@ class OptionPanel(Panel):
         self.rightAlignValues = rightAlignValues
         # the option that is selected
         self.selectedIndex = 0 if len(options) > 0 else None
+        self.lastIndent = 0
+        self.lastValueWidth = 20
 
     def _combineOptions(self, options, includeDisabled=True):
         combined = []
@@ -980,6 +984,9 @@ class OptionPanel(Panel):
         
     def setMessage(self, message):
         self.message = message
+        
+    def getOptions(self):
+        return self.options
 
     def addOption(self, option):
         """
@@ -1007,8 +1014,8 @@ class OptionPanel(Panel):
         selectedDescription = None
 
         indent = 0
-        for o in self.displayedOptions: indent = max(indent, len(o.getLabel()))
-        indent += 4
+        for o in self.options: indent = max(indent, len(o.getLabel()))
+        indent += 5 # 2 for left box and space, 3 for suboptions, 1 for pad
 
         for o in self.displayedOptions:
             # TODO fix this horrible inefficiency
@@ -1021,7 +1028,7 @@ class OptionPanel(Panel):
             # selected controls stand out from the rest
             extraAttributes = 0
             if self.selectedIndex < len(self.displayedOptions) and o is self.displayedOptions[self.selectedIndex]: 
-                extraAttributes = curses.A_STANDOUT
+                extraAttributes = curses.A_STANDOUT | curses.A_BOLD
                 selectedDescription = o.getDescription(width-4)
 
             # draw the option name and description
@@ -1030,7 +1037,8 @@ class OptionPanel(Panel):
             x = 2
             if isSubOption:
                 self.addch(y, x, curses.ACS_LLCORNER)
-                x += 1
+                self.addch(y, x+1, curses.ACS_HLINE)
+                x += 3
                 labelLen += 1
             self.addstr(y, x, label, o.getDisplayAttr() | extraAttributes)
             remainingSpace = textWidth - labelLen
@@ -1045,7 +1053,8 @@ class OptionPanel(Panel):
             else: 
                 self.addstr(y, indent, value, o.getDisplayAttr() | extraAttributes)
                 # set whitespace as non-bold due to curses pixel alignment bug
-                self.addstr(y, 2 + labelLen, " " * (indent - (2 + labelLen)),
+                endOfLabel = 2 + labelLen if not isSubOption else 4 + labelLen
+                self.addstr(y, endOfLabel, " " * (indent - (endOfLabel)),
                             o.getDisplayAttr() | extraAttributes)
                 
                 self.addstr(y, indent + len(value), " " * (width-indent-2-len(value)),
@@ -1076,13 +1085,44 @@ class OptionPanel(Panel):
         for line in selectedDescription:
             self.addstr(y, 2, padStr(line, textWidth))
             y += 1
+            
+        self.lastIndent = indent
+        self.lastValueWidth = width - indent - 2
 
     def handleKey(self, key):
-        if self.selectedIndex is not None:
-            if key == curses.KEY_UP:
-                self.selectedIndex = (self.selectedIndex - 1) % (len(self.displayedOptions)+2)
-            elif key == curses.KEY_DOWN:
-                self.selectedIndex = (self.selectedIndex + 1) % (len(self.displayedOptions)+2)
-            elif isSelectionKey(key):
-                pass
+        si = self.selectedIndex
+        do = self.displayedOptions
+        
+        if si is None: return None
+        
+        if key == curses.KEY_UP:
+            si = (si - 1) % (len(do)+2)
+        elif key == curses.KEY_DOWN:
+            si = (si + 1) % (len(do)+2)
+        elif isSelectionKey(key):
+            if si == len(do): return OptionResult.BACK # selected back
+            elif si == len(do)+1: return OptionResult.NEXT # selected next
+            elif isinstance(do[si], ToggleOption):
+                do[si].toggle()
+                i = si + 1
+                for o in do[si].getSuboptions():
+                    if not o.isEnabled():
+                        for o2 in do:
+                            if o is o2: do.remove(o)
+                    else: 
+                        do.insert(i, o)
+                        i += 1
+                        
+            else:
+                newValue = self.getstr(si + 3, self.lastIndent, do[si].getValue(), curses.A_STANDOUT | getColor(OPTION_COLOR), self.lastValueWidth)
+                if newValue:
+                    try: do[si].setValue(newValue.strip())
+                    except ValueError, exc:
+                        pass
+                        #cli.popups.showMsg(str(exc), 3)
+                        #cli.controller.getController().redraw()
+        elif key == 27: si = len(do) # select the back button
+      
+        self.selectedIndex = si
+        
         return None

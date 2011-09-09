@@ -32,32 +32,36 @@ def start(stdscr):
     # make sure toolbar is drawn
     CONTROLLER.redraw(True)
 
-    # launch the setup wizard to get setup mode
-    mode = wizardAskMode(stdscr, lp)
-    helpkey = None
-    
-    # the thread that will do the setup work while we run the display
-    setupThread = None
-    
-    # selectively create and start the setup thread
-    if mode == SetupModes.LAST:
-        # setup without clearing cache
-        setupThread = SetupThread(getConfig(), lp)
-        setupThread.start()
-    elif mode == SetupModes.DEFAULT: 
-        # setup using default config
-        _clearCacheHelper(getConfig(), lp)
-        setupThread = SetupThread(getDefaultConfig(), lp)
-        setupThread.start()
-    elif mode == SetupModes.CUSTOM: 
-        # use the wizard to configure and store custom options
-        _clearCacheHelper(getConfig(), lp)
-        wizardAskConfigure(stdscr, lp)
-        setupThread = SetupThread(getConfig(), lp)
-        setupThread.start()
-    elif mode == SetupModes.UNINSTALL: 
-        wizardDoUninstall(getConfig(), lp)
-    else: helpkey = ord('q')
+    # Used if track if we need to show the mode selection multiple times
+    askMode = True
+    while askMode:
+        # launch the setup wizard to get setup mode
+        mode = wizardAskMode(stdscr, lp)
+        helpkey = None
+        askMode = False
+        
+        # the thread that will do the setup work while we run the display
+        setupThread = None
+        
+        # selectively create and start the setup thread
+        if mode == SetupModes.LAST:
+            # setup without clearing cache
+            setupThread = SetupThread(getConfig(), lp)
+            setupThread.start()
+        elif mode == SetupModes.DEFAULT: 
+            # setup using default config
+            _clearCacheHelper(getConfig(), lp)
+            setupThread = SetupThread(getDefaultConfig(), lp)
+            setupThread.start()
+        elif mode == SetupModes.CUSTOM: 
+            # use the wizard to configure and store custom options
+            _clearCacheHelper(getConfig(), lp)
+            askMode = wizardAskConfigure(stdscr, lp)
+            setupThread = SetupThread(getConfig(), lp)
+            setupThread.start()
+        elif mode == SetupModes.UNINSTALL: 
+            wizardDoUninstall(getConfig(), lp)
+        else: helpkey = ord('q')
     
     # now we want the log to be shown
     lp.setVisible(True)
@@ -150,26 +154,42 @@ def wizardAskMode(stdscr, logger):
 def wizardAskConfigure(stdscr, logger):
     config = getConfig()
     
+    # TODO the optionpanel is a bit clunky and needs major refactoring...
     op = OptionPanel(stdscr, 1, 0, config.get("cli", "description.option.title"))
     op.setVisible(True)
     
-    opensslSubOption = Option(config.get("cli", "label.option.opensslurl"), config.get("cli", "description.option.opensslurl"), config.get("setup", "opensslurl"))
-    libeventSubOption = Option(config.get("cli", "label.option.libeventurl"), config.get("cli", "description.option.libeventurl"), config.get("setup", "libeventurl"))
+    opensslSubOption = Option(config.get("cli", "label.option.opensslurl"), config.get("cli", "description.option.opensslurl"), config.get("setup", "opensslurl"), customAttribute=("setup", "opensslurl"))
+    libeventSubOption = Option(config.get("cli", "label.option.libeventurl"), config.get("cli", "description.option.libeventurl"), config.get("setup", "libeventurl"), customAttribute=("setup", "libeventurl"))
     
-    op.addOption(Option(config.get("cli", "label.option.prefix"), config.get("cli", "description.option.prefix"), config.get("setup", "prefix")))
-    op.addOption(Option(config.get("cli", "label.option.cache"), config.get("cli", "description.option.cache"), config.get("setup", "cache")))
-    op.addOption(ToggleOption(config.get("cli", "label.option.doopenssl"), config.get("cli", "description.option.doopenssl"), "yes", "no", config.getboolean("setup", "doopenssl"), [opensslSubOption]))
-    op.addOption(ToggleOption(config.get("cli", "label.option.dolibevent"), config.get("cli", "description.option.dolibevent"), "yes", "no", config.getboolean("setup", "dolibevent"), [libeventSubOption]))
-    op.addOption(Option(config.get("cli", "label.option.shadowresourcesurl"), config.get("cli", "description.option.shadowresourcesurl"), config.get("setup", "shadowresourcesurl")))
-    op.addOption(Option(config.get("cli", "label.option.shadowurl"), config.get("cli", "description.option.shadowurl"), config.get("setup", "shadowurl")))
-    op.addOption(Option(config.get("cli", "label.option.includepaths"), config.get("cli", "description.option.includepaths"), config.get("setup", "includepaths")))
-    op.addOption(Option(config.get("cli", "label.option.librarypaths"), config.get("cli", "description.option.librarypaths"), config.get("setup", "librarypaths")))
-        
+    op.addOption(Option(config.get("cli", "label.option.prefix"), config.get("cli", "description.option.prefix"), config.get("setup", "prefix"), customAttribute=("setup", "prefix")))
+    op.addOption(Option(config.get("cli", "label.option.cache"), config.get("cli", "description.option.cache"), config.get("setup", "cache"), customAttribute=("setup", "cache")))
+    op.addOption(ToggleOption(config.get("cli", "label.option.doopenssl"), config.get("cli", "description.option.doopenssl"), "yes", "no", config.getboolean("setup", "doopenssl"), [opensslSubOption], customAttribute=("setup", "doopenssl")))
+    op.addOption(ToggleOption(config.get("cli", "label.option.dolibevent"), config.get("cli", "description.option.dolibevent"), "yes", "no", config.getboolean("setup", "dolibevent"), [libeventSubOption], customAttribute=("setup", "dolibevent")))
+    op.addOption(Option(config.get("cli", "label.option.shadowresourcesurl"), config.get("cli", "description.option.shadowresourcesurl"), config.get("setup", "shadowresourcesurl"), customAttribute=("setup", "shadowresourcesurl")))
+    op.addOption(Option(config.get("cli", "label.option.shadowurl"), config.get("cli", "description.option.shadowurl"), config.get("setup", "shadowurl"), customAttribute=("setup", "shadowurl")))
+    op.addOption(Option(config.get("cli", "label.option.includepaths"), config.get("cli", "description.option.includepaths"), config.get("setup", "includepaths"), customAttribute=("setup", "includepaths")))
+    op.addOption(Option(config.get("cli", "label.option.librarypaths"), config.get("cli", "description.option.librarypaths"), config.get("setup", "librarypaths"), customAttribute=("setup", "librarypaths")))
+    
     while True:
         op.redraw(True)
         key = stdscr.getch()
-        selection = op.handleKey(key)
-        if selection is not None: break
+        result = op.handleKey(key)
+        
+        if result is OptionResult.NEXT: 
+            break
+        elif result is OptionResult.BACK: 
+            return True
+    
+    # if we get here, we configured and confirmed the options
+    # now save new configs
+    for o in op.getOptions():
+        (group, key) = o.getCustomAttribute()
+        config.set(group, key, str(o.getValue()))
+        
+    saveConfig(config)
+    
+    # do not show the mode selection screen again
+    return False
 
 def wizardDoUninstall(config, logger):
     # shadow related files that need to be uninstalled:
@@ -231,13 +251,13 @@ class SetupThread(threading.Thread):
         prefix = os.path.abspath(os.path.expanduser(config.get("setup", "prefix")))
         
         # extra flags for building
-        extraIncludePaths = os.path.abspath(os.path.expanduser(config.get("setup", "includepathlist")))
+        extraIncludePaths = os.path.abspath(os.path.expanduser(config.get("setup", "includepaths")))
         extraIncludeFlagList = ["-I" + include for include in extraIncludePaths.split(';') if include != ""]
         extraIncludeFlags = " ".join(extraIncludeFlagList)
         logger.debug("using compiler flags \'" + extraIncludeFlags + "\'")
         
         # extra search paths for libs
-        extraLibPaths = os.path.abspath(os.path.expanduser(config.get("setup", "libpathlist")))
+        extraLibPaths = os.path.abspath(os.path.expanduser(config.get("setup", "librarypaths")))
         extraLibFlagList = ["-L" + lib for lib in extraLibPaths.split(';') if lib != ""]
         extraLibFlags = " ".join(extraLibFlagList)
         logger.debug("using linker flags \'" + extraLibFlags + "\'")
