@@ -2,7 +2,7 @@
 Provides user prompts for setting up shadow.
 """
 
-import curses, shutil, threading
+import curses, shutil, threading, sys, os
 
 from controller import *
 from panel import *
@@ -154,21 +154,32 @@ def wizardAskConfigure(stdscr, logger):
     op = OptionPanel(stdscr, 1, 0, config.get("cli", "description.option.title"))
     op.setVisible(True)
     
+    # suboptions for shadow dependencies
     opensslSubOption = Option(config.get("cli", "label.option.opensslurl"), config.get("cli", "description.option.opensslurl"), config.get("setup", "opensslurl"), customAttribute=("setup", "opensslurl"))
     libeventSubOption = Option(config.get("cli", "label.option.libeventurl"), config.get("cli", "description.option.libeventurl"), config.get("setup", "libeventurl"), customAttribute=("setup", "libeventurl"))
-    scallionSubOption = Option(config.get("cli", "label.option.scallionurl"), config.get("cli", "description.option.scallionurl"), config.get("setup", "scallionurl"), customAttribute=("setup", "scallionurl"))
-    pygeoipSubOption = Option(config.get("cli", "label.option.pygeoipurl"), config.get("cli", "description.option.pygeoipurl"), config.get("setup", "pygeoipurl"), customAttribute=("setup", "pygeoipurl"))
-    maxmindSubOption = Option(config.get("cli", "label.option.maxmindurl"), config.get("cli", "description.option.maxmindurl"), config.get("setup", "maxmindurl"), customAttribute=("setup", "maxmindurl"))
-    torurlSubOption = Option(config.get("cli", "label.option.torurl"), config.get("cli", "description.option.torurl"), config.get("setup", "torurl"), customAttribute=("setup", "torurl"))
+    glibSubOption = Option(config.get("cli", "label.option.gliburl"), config.get("cli", "description.option.gliburl"), config.get("setup", "gliburl"), customAttribute=("setup", "gliburl"))
+    cmakeSubOption = Option(config.get("cli", "label.option.cmakeurl"), config.get("cli", "description.option.cmakeurl"), config.get("setup", "cmakeurl"), customAttribute=("setup", "cmakeurl"))
     
+    # suboptions for scallion dependencies
+    pygeoipSubOption = Option(config.get("cli", "label.option.pygeoipurl"), config.get("cli", "description.option.pygeoipurl"), config.get("setup", "pygeoipurl"), customAttribute=("setup", "pygeoipurl"))
+    torversionSubOption = Option(config.get("cli", "label.option.torversion"), config.get("cli", "description.option.torversion"), config.get("setup", "torversion"), customAttribute=("setup", "torversion"))
+    scallionSubOption = Option(config.get("cli", "label.option.scallionurl"), config.get("cli", "description.option.scallionurl"), config.get("setup", "scallionurl"), customAttribute=("setup", "scallionurl"))
+    
+    # general options
     op.addOption(Option(config.get("cli", "label.option.prefix"), config.get("cli", "description.option.prefix"), config.get("setup", "prefix"), customAttribute=("setup", "prefix")))
     op.addOption(Option(config.get("cli", "label.option.cache"), config.get("cli", "description.option.cache"), config.get("setup", "cache"), customAttribute=("setup", "cache")))
+    
+    # main dependencies
     op.addOption(ToggleOption(config.get("cli", "label.option.doopenssl"), config.get("cli", "description.option.doopenssl"), "yes", "no", config.getboolean("setup", "doopenssl"), [opensslSubOption], customAttribute=("setup", "doopenssl")))
     op.addOption(ToggleOption(config.get("cli", "label.option.dolibevent"), config.get("cli", "description.option.dolibevent"), "yes", "no", config.getboolean("setup", "dolibevent"), [libeventSubOption], customAttribute=("setup", "dolibevent")))
-    op.addOption(Option(config.get("cli", "label.option.shadowresourcesurl"), config.get("cli", "description.option.shadowresourcesurl"), config.get("setup", "shadowresourcesurl"), customAttribute=("setup", "shadowresourcesurl")))
+    op.addOption(ToggleOption(config.get("cli", "label.option.doglib"), config.get("cli", "description.option.doglib"), "yes", "no", config.getboolean("setup", "doglib"), [glibSubOption], customAttribute=("setup", "doglib")))
+    op.addOption(ToggleOption(config.get("cli", "label.option.docmake"), config.get("cli", "description.option.docmake"), "yes", "no", config.getboolean("setup", "docmake"), [cmakeSubOption], customAttribute=("setup", "docmake")))
+    
+    # main shadow
     op.addOption(Option(config.get("cli", "label.option.shadowurl"), config.get("cli", "description.option.shadowurl"), config.get("setup", "shadowurl"), customAttribute=("setup", "shadowurl")))
     op.addOption(ToggleOption(config.get("cli", "label.option.shadowdebug"), config.get("cli", "description.option.shadowdebug"), "yes", "no", config.getboolean("setup", "shadowdebug"), [], customAttribute=("setup", "shadowdebug")))
-    op.addOption(ToggleOption(config.get("cli", "label.option.doscallion"), config.get("cli", "description.option.doscallion"), "yes", "no", config.getboolean("setup", "doscallion"), [scallionSubOption, pygeoipSubOption, maxmindSubOption, torurlSubOption], customAttribute=("setup", "doscallion")))
+    op.addOption(ToggleOption(config.get("cli", "label.option.doscallion"), config.get("cli", "description.option.doscallion"), "yes", "no", config.getboolean("setup", "doscallion"), [torversionSubOption, pygeoipSubOption, scallionSubOption], customAttribute=("setup", "doscallion")))
+    
     op.addOption(Option(config.get("cli", "label.option.includepaths"), config.get("cli", "description.option.includepaths"), config.get("setup", "includepaths"), customAttribute=("setup", "includepaths")))
     op.addOption(Option(config.get("cli", "label.option.librarypaths"), config.get("cli", "description.option.librarypaths"), config.get("setup", "librarypaths"), customAttribute=("setup", "librarypaths")))
     
@@ -279,34 +290,45 @@ class SetupThread(threading.Thread):
             # libevent
             cmdlist = ["./configure --prefix=" + prefix + " CFLAGS=\"-fPIC " + extraIncludeFlags + "\" LDFLAGS=\"" + extraLibFlags + "\"", "make", "make install"]
             success = self._setupHelper(config, "libeventurl", cmdlist, logger)
+            
+        if success and config.getboolean("setup", "doglib"):
+            cmdList = ["./configure --prefix=" + prefix, "make", "make install"]
+            success = self._setupHelper(config, "gliburl", cmdList, logger)
+            
+        if success and config.getboolean("setup", "docmake"):
+            cmdList = ["./bootstrap --prefix=" + prefix, "make", "make install"]
+            success = self._setupHelper(config, "cmakeurl", cmdList, logger)
+            # make sure the shadow install knows where to find cmake
+            if success: sys.path.append(os.path.abspath(prefix + "/bin"))
         
+        # build shadow
         if success:
-            # shadow resources
-            cmdlist = []
-            success = self._setupHelper(config, "shadowresourcesurl", cmdlist, logger)
-        
-        if success:
-            # shadow
-            cmdList = ["cmake -DCMAKE_BUILD_PREFIX=. -DCMAKE_INSTALL_PREFIX=" + prefix + " -DCMAKE_EXTRA_INCLUDES=" + extraIncludePaths + " -DCMAKE_EXTRA_LIBRARIES=" + extraLibPaths, "make", "make install"]
+            do_debug = config.getboolean("setup", "shadowdebug")
+            cmdList = ["python setup.py build -p " + prefix + " -i " + extraIncludePaths + " -l " + extraLibPaths, "python setup.py install"]
+            if do_debug: cmdList[0] += " -g"
             success = self._setupHelper(config, "shadowurl", cmdList, logger)
             
         # TODO fix scallion support
+        sitepkg = None
         if success and config.getboolean("setup", "doscallion"):
-            if success and config.getboolean("setup", "domaxmind"):
-                cmdList = [] # TODO
-                success = self._setupHelper(config, "maxmindurl", cmdList, logger)
-                
             if success and config.getboolean("setup", "dopygeoip"):
-                cmdList = [] # TODO
+                sitepkg = os.path.abspath(prefix + "/lib/python2.7/site-packages")
+                if not os.path.exists(sitepkg): os.makedirs(sitepkg)
+                cmdList = ["python setup.py install --prefix=" + prefix]
                 success = self._setupHelper(config, "pygeoipurl", cmdList, logger)
-            
-            if success:    
-                cmdList = [] # TODO
+                
+            if success:
+                torversion = config.get("setup", "torversion")
+                # TODO this assumes openssl and libevent are always installed to prefix...
+                cmdList = ["python setup.py build -p " + prefix + " -i " + extraIncludePaths + " -l " + extraLibPaths + " -v " + torversion + " --libevent-prefix " + prefix + " --openssl-prefix " + prefix, "python setup.py install -v " + torversion]
                 success = self._setupHelper(config, "scallionurl", cmdList, logger)
         
         if success:
+            logger.info("**************************************************")
             logger.info("setup succeeded! please check \'" + prefix + "/bin\' for binaries.")
-            logger.info("please add \'" + prefix + "/bin\' to you PATH.")
+            logger.info("please add \'" + prefix + "/bin\' to your PATH")
+            if sitepkg is not None: logger.info("please add " + sitepkg + " to your PYTHONPATH")
+            logger.info("**************************************************")
         else: logger.info("setup failed... please check the log file.")
         
     def _setupHelper(self, config, key, cmdlist, logger):

@@ -26,16 +26,17 @@ doopenssl = true
 opensslurl = http://www.openssl.org/source/openssl-1.0.0d.tar.gz
 dolibevent = true
 libeventurl = http://monkey.org/~provos/libevent-2.0.11-stable.tar.gz
+doglib = false
+gliburl = http://ftp.gnome.org/pub/gnome/sources/glib/2.28/glib-2.28.7.tar.gz
+docmake = false
+cmakeurl = http://www.cmake.org/files/v2.8/cmake-2.8.5.tar.gz
 shadowurl = http://shadow.cs.umn.edu/downloads/shadow-release.tar.gz
 shadowdebug = false
-shadowresourcesurl = http://shadow.cs.umn.edu/downloads/shadow-resources.tar.gz
 doscallion = false
 scallionurl = http://shadow.cs.umn.edu/downloads/shadow-scallion-release.tar.gz
 dopygeoip = true
 pygeoipurl = http://pygeoip.googlecode.com/files/pygeoip-0.2.1.tar.gz
-domaxmind = true
-maxmindurl = http://geolite.maxmind.com/download/geoip/database/GeoLiteCity.dat.gz
-torurl = https://archive.torproject.org/tor-package-archive/tor-0.2.2.15-alpha.tar.gz
+torversion = 0.2.2.15-alpha
 
 ## This section is used for interface configurations and should not be modified.
 [cli]
@@ -77,8 +78,17 @@ description.option.dolibevent = Should we download, configure, and locally insta
 label.option.libeventurl = libevent URL
 description.option.libeventurl = The URL of the libevent package that we will download, configure, and install.
 
-label.option.shadowresourcesurl = resources URL
-description.option.shadowresourcesurl = The URL of the required shadow-resources package that we will download and install.
+label.option.doglib = setup glib
+description.option.doglib = Should we download, configure, and locally install a version of glib? glib is required so that Shadow can run, but is usually easier to install through the package manager if possible. If you choose not to locally install glib, you may not need to add your glib library and include paths below, since Shadow usually does a good job of finding your system installation.
+
+label.option.gliburl = glib URL
+description.option.gliburl = The URL of the glib package that we will download, configure, and install.
+
+label.option.docmake = setup cmake
+description.option.docmake = Should we download, configure, and locally install a version of cmake? Cmake is required to build Shadow.
+
+label.option.cmakeurl = cmake URL
+description.option.cmakeurl = The URL of the cmake package that we will download, configure, and install.
 
 label.option.shadowurl = shadow URL
 description.option.shadowurl = The URL of the Shadow package that we will download, configure, and install.
@@ -95,11 +105,8 @@ description.option.scallionurl = The URL of the Shadow plug-in Scallion that we 
 label.option.pygeoipurl = pygeoip URL
 description.option.pygeoipurl = The URL of the pygeoip Python module. This is required to parse the Tor consensus and generate Tor topologies that accurately reflect Tor in Shadow.
 
-label.option.maxmindurl = maxmind URL
-description.option.maxmindurl = The URL of the maxmind GeoIP database. This is required when generating Tor topologies that accurately reflect Tor in Shadow.
-
 label.option.torversion = tor version
-description.option.torversion = The official version of the Tor package you'd like to run in Shadow. This is used to determine the URL of the Tor package. If you have a custom URL, you can ignore this option.
+description.option.torversion = The official version of the Tor package you'd like to run in Shadow. This is used to determine the URL of the Tor package.
 
 label.option.torurl = tor URL
 description.option.torurl = The URL of the Tor package you'd like to run in Shadow. This is required to build Scallion. You may change the version numbers in the URL to change the version of Tor that is compiled into Scallion. 
