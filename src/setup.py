@@ -265,6 +265,8 @@ class SetupThread(threading.Thread):
         
         # use the configured options to actually do the downloads, configure, make, etc
         prefix = os.path.abspath(os.path.expanduser(config.get("setup", "prefix")))
+        # make sure the shadow builder knows where to find cmake, etc...
+        os.environ["PATH"] += ":" + os.path.abspath(prefix + "/bin")
         
         # extra flags for building
         extraIncludePaths = os.path.abspath(os.path.expanduser(config.get("setup", "includepaths")))
@@ -298,8 +300,6 @@ class SetupThread(threading.Thread):
         if success and config.getboolean("setup", "docmake"):
             cmdList = ["./bootstrap --prefix=" + prefix, "make", "make install"]
             success = self._setupHelper(config, "cmakeurl", cmdList, logger)
-            # make sure the shadow install knows where to find cmake
-            if success: sys.path.append(os.path.abspath(prefix + "/bin"))
         
         # build shadow
         if success:
