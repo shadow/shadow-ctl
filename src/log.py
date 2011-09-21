@@ -281,7 +281,7 @@ class LogPanel(Panel, threading.Thread):
         isKeystrokeConsumed = True
         if isScrollKey(key):
             pageHeight = self.getPreferredSize()[0] - 1
-            newScroll = getScrollPosition(key, self.scroll, pageHeight, self.lastContentHeight)
+            newScroll = getScrollPosition(key, self.scroll, pageHeight, self.lastContentHeight, doLoop=False)
 
             if self.scroll != newScroll:
                 self.valsLock.acquire()
